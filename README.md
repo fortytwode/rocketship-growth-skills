@@ -2,7 +2,7 @@
 
 Practical app-growth workflows for your AI assistant: competitor research, customer insights, creative development, video remakes, Meta account structure and clear writing.
 
-Browse the [RocketShip skills catalogue](https://www.rocketshiphq.com/tools/skills/) for examples, requirements and downloads. Each skill ZIP is available from [the public release](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.0), with no GitHub account required to download.
+Browse the [RocketShip skills catalogue](https://www.rocketshiphq.com/tools/skills/) for examples, requirements and downloads. Each skill ZIP is available from [the public release](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.1), with no GitHub account required to download.
 
 These are free skill folders. Supply your own files, assistant and any account access or provider keys a workflow requires. RocketShip accounts and client data are not included.
 
@@ -13,11 +13,11 @@ These are free skill folders. Supply your own files, assistant and any account a
 | [Meta Account Structure Audit](skills/account-structure-audit/SKILL.md) | Guides a read-only structural audit using the existing public runtime | Python 3.10+, your authorized Meta account and ads_read token; primarily B2C subscription/trial apps |
 | [Humanizer](skills/humanizer/SKILL.md) | Makes artificial or unnecessarily technical writing clear while preserving meaning, evidence and voice | Draft text and relevant context |
 | [Video-to-video](skills/video-to-video/SKILL.md) | Guides a faithful reference remake with an explicit change list; prepares local evidence and assembles compatible prepared clips | Reference, source assets, video/audio inspection; Python and FFmpeg for helpers; your own tools for generated scenes |
-| [Creative Opportunity Brief](skills/creative-opportunity-brief/SKILL.md) | Turns customer reviews into ranked angles and production briefs, with quotes, product proof and test questions | Review export, verified product facts, optional inspected ads; Python 3.10+ for local Apple collection and evidence helpers |
+| [App Store Review Analysis](skills/app-store-review-analysis/SKILL.md) | Downloads recent App Store reviews from an app ID; your assistant turns them into ranked angles and test briefs | App Store app ID and countries, verified product facts and your assistant; Python 3.10+; Google Play needs a supplied export |
 
 ## Use a skill
 
-1. Browse the [skills/ folder](skills/) and choose a workflow. Download its matching ZIP from [the release downloads](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.0) or clone this repository.
+1. Browse the [skills/ folder](skills/) and choose a workflow. Download its matching ZIP from [the release downloads](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.1) or clone this repository.
 2. Ask your assistant to read that folder's `SKILL.md` and `SETUP.md`. Follow its setup instructions before running the workflow.
 3. Supply your inputs and review the result, including anything the assistant could not verify.
 
@@ -27,7 +27,7 @@ The account-audit folder is a wrapper. Its implementation remains in [meta-ads-a
 
 Video-to-video includes local media preparation and a conservative assembly helper. It does not include a hosted AI video generator. Use your own authorized tools for new scenes, voices or substantial edits, and inspect the actual output before claiming fidelity. See its setup guide for supported audio/container limits.
 
-Creative Opportunity Brief reuses the review collection method behind Sherlock, without its cloud cache or connected systems. Apple collection is optional and bounded; Google Play uses supplied exports. Full review text, low ratings, missing data and duplicate warnings stay visible. Reviews can suggest a desire; only verified product facts can support an advertising promise. See the [fictional pilot](skills/creative-opportunity-brief/examples/product-and-ads.md).
+App Store Review Analysis downloads recent reviews from an App Store app ID using the collection method behind Sherlock, without its cloud cache or connected systems. Python runs the downloader; your own assistant performs the analysis. Apple's recent feed is bounded to at most 500 reviews per country store; actual coverage may be smaller. Google Play needs a supplied export. Full review text, low ratings, missing data and duplicate warnings stay visible. Reviews can suggest a desire; only verified product facts can support an advertising promise. See the [fictional pilot](skills/app-store-review-analysis/examples/product-and-ads.md).
 
 ## Where things live
 

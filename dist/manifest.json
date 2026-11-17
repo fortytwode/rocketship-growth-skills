@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "edition": "v1.0.0",
+  "edition": "v1.0.1",
   "skills": {
     "competitor-ad-analysis": {
       "version": "1.1.0",
@@ -87,15 +87,15 @@
         "tests/test_render_video.py": "003231b165012c8a547f396f558e15eb170ad2140acda5e480ae2d64810e87e7"
       }
     },
-    "creative-opportunity-brief": {
-      "version": "1.0.0",
-      "source": "skills/creative-opportunity-brief",
-      "zip": "dist/creative-opportunity-brief.zip",
-      "archive_sha256": "5465097de1cdd96b845022322336f9d1d646229b20b41c934e11006c534430a5",
+    "app-store-review-analysis": {
+      "version": "1.0.1",
+      "source": "skills/app-store-review-analysis",
+      "zip": "dist/app-store-review-analysis.zip",
+      "archive_sha256": "0677e3be064c334833a045decf9648dec271216e606b591b2fca3d5949fb782f",
       "files": {
         "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
-        "SETUP.md": "9e7c28552d297c59617a578cba23eba3a267ab3e5e788782f9c0bca6cc315250",
-        "SKILL.md": "6ddbb5a3f16a894335604268ba61b07c38e42b96b6e3f19a74b9f9749028a47f",
+        "SETUP.md": "0cbcc6c2f4c81dd801e4dc580d856b5066d4e63ab3e70af0f0006fec6488ee0d",
+        "SKILL.md": "dea72fc277a1ae85bdfe59b0e723164080b6c109534768b1b1984b522b5ece1f",
         "examples/brief.md": "ba77dcce252636aad1a024fb1ce18a456eda964ae943ae8c616d465f45e7e19c",
         "examples/product-and-ads.md": "9d9950f174770326693c48935da4c37f66b2753e4ce4edc80992b70896e13d18",
         "examples/reviews.json": "f9fbd07048263b040be661ca8265b1b6bb57eab60c82bbc694aacbba2b88d26c",
