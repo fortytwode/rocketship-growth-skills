@@ -1,0 +1,11 @@
+{
+  "ads": [
+    {
+      "ad_id": "example-ad-1",
+      "media_file": "your-ad.mp4",
+      "source_url": "",
+      "launch_date": "",
+      "ad_copy": "Replace with the actual captured ad copy, or leave blank."
+    }
+  ]
+}

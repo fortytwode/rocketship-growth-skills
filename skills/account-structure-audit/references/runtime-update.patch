@@ -1,0 +1,77 @@
+--- a/_shared.py
++++ b/_shared.py
+@@ -14,7 +14,7 @@
+ 
+ logger = logging.getLogger(__name__)
+ 
+-META_API_VERSION = "v21.0"
++META_API_VERSION = "v25.0"
+ META_BASE = f"https://graph.facebook.com/{META_API_VERSION}"
+ 
+ # Repo root (the directory containing this file). Override with AUDIT_ROOT if needed.
+@@ -40,39 +40,39 @@
+     return token, ad_account_id
+ 
+ 
+-def paginate(url: str, params: dict, max_pages: int = 50, timeout: int = 60) -> list[dict]:
+-    """Paginate a Meta API endpoint with retry/backoff. Returns flat list of results."""
++def paginate(url: str, params: dict, max_pages: int = 50, timeout: int = 60, max_retries: int = 3) -> list[dict]:
++    """Read pages with bounded retries; errors never include credential-bearing URLs."""
+     out: list[dict] = []
+     pages = 0
+-    backoff = 1
+     while url and pages < max_pages:
+-        try:
+-            r = requests.get(url, params=params, timeout=timeout)
+-            if r.status_code == 429 or (500 <= r.status_code < 600):
+-                logger.warning("Meta API %s, retrying in %ds", r.status_code, backoff)
+-                time.sleep(backoff)
+-                backoff = min(backoff * 2, 16)
+-                continue
+-            r.raise_for_status()
+-        except requests.exceptions.RequestException as e:
+-            logger.warning(
+-                "Request error (%s), retrying in %ds",
+-                e.__class__.__name__,
+-                backoff,
+-            )
+-            time.sleep(backoff)
+-            backoff = min(backoff * 2, 16)
+-            if backoff > 16:
+-                raise
+-            continue
+-        data = r.json()
++        for attempt in range(max_retries + 1):
++            try:
++                response = requests.get(url, params=params, timeout=timeout)
++            except requests.exceptions.RequestException:
++                if attempt == max_retries:
++                    raise RuntimeError("Meta request failed after bounded network retries.") from None
++                status = "network"
++            else:
++                status = response.status_code
++                if status == 429 or 500 <= status < 600:
++                    if attempt == max_retries:
++                        raise RuntimeError(f"Meta request failed (HTTP {status}) after bounded retries.") from None
++                elif status >= 400:
++                    raise RuntimeError(f"Meta request failed (HTTP {status}); check account access and token permissions.") from None
++                else:
++                    break
++            delay = min(2 ** attempt, 16)
++            logger.warning("Meta request failed (%s); retrying in %ds", status, delay)
++            time.sleep(delay)
++        data = response.json()
+         if "error" in data:
+-            raise RuntimeError(f"Meta API error: {data['error']}")
++            code = data["error"].get("code") if isinstance(data["error"], dict) else None
++            safe_code = str(code) if isinstance(code, int) else "unknown"
++            raise RuntimeError(f"Meta API returned error code {safe_code}.")
+         out.extend(data.get("data", []))
+         url = data.get("paging", {}).get("next")
+-        params = None  # Meta returns next URL with params already embedded
++        params = None  # Meta returns the next URL with its parameters included.
+         pages += 1
+-        backoff = 1
+     if pages >= max_pages:
+         logger.warning("paginate hit max_pages=%d, may be truncated", max_pages)
+     return out

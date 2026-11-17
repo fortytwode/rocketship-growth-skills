@@ -1,0 +1,4 @@
+interface:
+  display_name: "Humanizer"
+  short_description: "Make updates clear, natural and easy to explain"
+  default_prompt: "Use $humanizer to rewrite this update in natural, conversational language I can explain and stand behind."

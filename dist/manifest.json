@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "edition": "review-2026-11-17",
+  "skills": {
+    "competitor-ad-analysis": {
+      "version": "1.1.0",
+      "source": "skills/competitor-ad-analysis",
+      "zip": "dist/competitor-ad-analysis.zip",
+      "archive_sha256": "067418a2c2c25fc8c7cf06e820190eef07481faf2b57cb528bc4265ddfb6ad66",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "eae36d8a984510002be0eb5ecb6c53d0ea3e14752d38b5e2d832930d5474af3b",
+        "SKILL.md": "18777a3393f312620ef12912210072b5d11425415bff76d36d7a42ebddd8424c",
+        "env.example": "54ecae38ff48c90dd372d1a7b1382144d877bb2e4d43f1faecac136a3d26ba7b",
+        "examples/import-manifest.json": "e28ad694d7f9c89e3af16c283358a02d5cfe8aa6a6ec74fff70a2ee634d0a100",
+        "gallery.json": "2fa9915c135bdc1db768ec5941203606905ec7e5bf2e198ac27fb431e4d34ece",
+        "references/research-method.md": "840c6dfddd3c69f115f565ecbf82699e8f549ad3dbd09086f7a80d97d2892986",
+        "requirements.txt": "6a70b89a7560cf50cd63aab9cab5daca8ba48623c026dd9c70f5d16ed2384aa6",
+        "scripts/analyze.py": "4acc1a2395cc1984e6b1e15d68c324b02b40561974fabc52e2a91ab64c22501e",
+        "scripts/capture.py": "9c3523f87ca5b15d7b43092df8ee7764fa2710b4bc2efa410d076c1abd8f791c",
+        "scripts/capture_engine.py": "2a2d610ceb103df39e3b41ed14c46bec97e13a6a4714507d53e3657cc3c8369b",
+        "scripts/media.py": "354505d1b43a46b8e0d6ccdb0d165f73d09c6d144e7fad5e5945b3d98633ab15",
+        "scripts/report.py": "c18a2c9ca005a728cee8938d750cd351acaeca0faf5306ce2036a8e65e4713f6",
+        "scripts/setup.py": "6d1facf62c0175d8e3f9aeb1885e43548dd0cfbb71c6a3e612943d5048e41023",
+        "tests/test_analysis.py": "cc7dc920a7bd6657639e3c32c38b823d889af9213365816fb619847a0d4ed2be",
+        "tests/test_media.py": "ca194bc71c6ad3add6882a4f182fe062d5633e4ede7449c43433433728a6d62d",
+        "tests/test_report.py": "8e372eee6a62fb13f24cc2ba4024b9258e77f13775bdb626c6268dc44d776f25",
+        "tests/test_setup.py": "f0630acb10133875cd71d56616f40db51bcc545832c2e9ceceb55c610192c617"
+      }
+    },
+    "creative-from-winner": {
+      "version": "1.0.0 draft",
+      "source": "skills/creative-from-winner",
+      "zip": "dist/creative-from-winner.zip",
+      "archive_sha256": "6abbfd856baee132a12ff35282cecfd57904aa23ec3c5beab33a6c8bb1d3f964",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "8f798daf72bb98097608d12fd915b40361c4eee23bbe0c96746ba600358eb3e1",
+        "SKILL.md": "e08928d750550021abf081aa511f5d65674a0fa5de66d00301a3d682de6e98e6",
+        "examples/illustrative-output.md": "a434e071239a1eacdc7d531176a1841f3b88079bd3c3a4d2055e64c98686b7f0",
+        "examples/synthetic-input.md": "9927b119c639b69661464f30456d095a657fa91c221558994f6aec414034aa08"
+      }
+    },
+    "account-structure-audit": {
+      "version": "1.0.0 draft wrapper",
+      "source": "skills/account-structure-audit",
+      "zip": "dist/account-structure-audit.zip",
+      "archive_sha256": "908406d6762249d2d012d4a374a11cea3ab194ba2475518dfb3699920fd1d99f",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "705d884f1f59fd29380209b8b830b2c3548490af845e4e220afc3b55b6247b05",
+        "SKILL.md": "4b9a24534b66b2f63276308ceed15e4054a0372d4db5860268260b3223ab4466",
+        "examples/synthetic-findings.md": "e1c9a010c3871e1edb8a933ccb09cf30f341bc1ebb0aedf63d9a2c37d81c8fd9",
+        "references/runtime-update.patch": "03e37f81f957c55db3417f667cf84821c5e888360d1b5b6708ae44852e29e8b2"
+      }
+    },
+    "humanizer": {
+      "version": "1.0.0 draft",
+      "source": "skills/humanizer",
+      "zip": "dist/humanizer.zip",
+      "archive_sha256": "4eb34deb60e85b73745b8bf4a418f23d4171a1c48e6f50ef04b34734b8fed2e6",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "8d43798992395e62631c0e45cd78c5cea5a6ca7d4b3545e5e5b7aed14a92724d",
+        "SKILL.md": "ccc7e37c4678561bed712320791b282d6b94143eda82e817e722c5c3b326e5b4",
+        "agents/openai.yaml": "bacaf658701e45983fc8d163c2a763e5a704a0a4c30347ef1606431b17769f6f",
+        "gallery.json": "74cffe5391fd5892b5b4ac500a26b9a8598340a6b4c067ce066921e6e0721dad",
+        "references/examples.md": "42a3f8d7b6741fb54f3bd2a26e2986bf83b191b5609e47a121c59d1af1ca5f2d"
+      }
+    },
+    "video-to-video": {
+      "version": "1.0.0 draft",
+      "source": "skills/video-to-video",
+      "zip": "dist/video-to-video.zip",
+      "archive_sha256": "45350cb0501eb16d20b8544a4767ff88a0f78e18e4c4d1d59b30c467e30a8f66",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "159ad57a63009bb175a1c23f6dcb06f8031d2c72fbabfa0634fb19d67faee186",
+        "SKILL.md": "9601ce9cfac0c44ee6b18f9e348238809bf66ec0d2a30b849a8303f69a201402",
+        "examples/assembly.json": "f00429ccbbcc2acbc3c6c975110b95799364b5bd8c5ab30bbe3e99d540507dfc",
+        "references/reconstruction-record.md": "c9250b29c4d52df11920c8de0a9544750ecd12a8ef0d84fa5e1e88f8014ee4d1",
+        "requirements.txt": "e52863ffaf19d7bf8b07b7e41fcfaca4100ba938195d263cd376df2bae63bba3",
+        "scripts/prepare_reference.py": "536f4e3d564d5c33cafd6439571c8b0841734dea74c335e598c46949829bb32f",
+        "scripts/render_video.py": "4f73d851f19f6167c63e324a19d3f3f9d5afc2f6c11c7a5aec30f2a9712cb586",
+        "scripts/shared_media.py": "354505d1b43a46b8e0d6ccdb0d165f73d09c6d144e7fad5e5945b3d98633ab15",
+        "tests/test_prepare_reference.py": "bc9c9dba7afd5af50040ce9cd28c8b7caad1a6a2bafddd0f41ef10ae23273f5d",
+        "tests/test_render_video.py": "003231b165012c8a547f396f558e15eb170ad2140acda5e480ae2d64810e87e7"
+      }
+    },
+    "creative-opportunity-brief": {
+      "version": "1.0.0 draft",
+      "source": "skills/creative-opportunity-brief",
+      "zip": "dist/creative-opportunity-brief.zip",
+      "archive_sha256": "5465097de1cdd96b845022322336f9d1d646229b20b41c934e11006c534430a5",
+      "files": {
+        "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
+        "SETUP.md": "9e7c28552d297c59617a578cba23eba3a267ab3e5e788782f9c0bca6cc315250",
+        "SKILL.md": "6ddbb5a3f16a894335604268ba61b07c38e42b96b6e3f19a74b9f9749028a47f",
+        "examples/brief.md": "ba77dcce252636aad1a024fb1ce18a456eda964ae943ae8c616d465f45e7e19c",
+        "examples/product-and-ads.md": "9d9950f174770326693c48935da4c37f66b2753e4ce4edc80992b70896e13d18",
+        "examples/reviews.json": "f9fbd07048263b040be661ca8265b1b6bb57eab60c82bbc694aacbba2b88d26c",
+        "references/brief.md": "36439be5444452f70cd8eb7f8f45016f001233bb1ace2c0223de70b297903ce3",
+        "scripts/collect_app_store.py": "48cba6f81a454a53af054bbb5ec154d9abf18e2027e3c97bfb5636fee0c78610",
+        "scripts/normalize_reviews.py": "f72e2d9aac07f8869475cf0e4299ee4d3333be4a032415bd530a343fe0cefc5f",
+        "tests/test_collect_app_store.py": "8d36a0f7971f8d3a56cf974b9a4dcff80df97947777ffe8d5eaa2e74b059f3d3",
+        "tests/test_normalize_reviews.py": "ac6b8aa70382bf37e2d7e4fa249d27c76464c4dfee4ce6308f9d183e57588cd6"
+      }
+    }
+  }
+}

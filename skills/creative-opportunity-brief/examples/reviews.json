@@ -1,0 +1,14 @@
+{
+  "collection": {
+    "synthetic": true,
+    "description": "Fictional format and judgment demonstration. Six hand-authored rows, not a collected or representative sample."
+  },
+  "reviews": [
+    {"review_id":"fictional-01","app_id":"fictional-evening-pocket","store":"App Store","country":"us","date":"2026-10-03","rating":5,"title":"A stopping point","text":"I used to keep scrolling after the kids were asleep. Ten minutes with my headphones gives the evening a stopping point."},
+    {"review_id":"fictional-02","app_id":"fictional-evening-pocket","store":"App Store","country":"gb","date":"2026-10-05","rating":4,"title":"On the train","text":"I download one before the journey. It is useful when the train loses signal, although I wish the download were easier to find."},
+    {"review_id":"fictional-03","app_id":"fictional-evening-pocket","store":"Google Play","country":"us","date":"2026-10-07","rating":1,"title":"Not ready when I needed it","text":"The download failed before my train left. The session would not play when I lost signal."},
+    {"review_id":"fictional-04","app_id":"fictional-evening-pocket","store":"App Store","country":"us","date":"2026-10-08","rating":2,"title":"Expected a person","text":"I thought I would get a coach who knew my situation. It is a library of recordings."},
+    {"review_id":"fictional-05","app_id":"fictional-evening-pocket","store":"Google Play","country":"ca","date":"2026-10-09","rating":4,"title":"Before the meeting","text":"I listen to a short session before a presentation. I still feel nervous, but it gives me something to do besides rehearse the same first sentence."},
+    {"review_id":"fictional-06","app_id":"fictional-evening-pocket","store":"App Store","country":"us","date":"2026-10-10","rating":3,"title":"Know what you are buying","text":"I liked the recordings. I did not realize a subscription followed the trial, so I cancelled."}
+  ]
+}

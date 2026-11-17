@@ -1,0 +1,462 @@
+import importlib.util
+import json
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from PIL import Image
+
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+SPEC = importlib.util.spec_from_file_location("competitor_ad_analysis", SCRIPTS / "analyze.py")
+analysis = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = analysis
+SPEC.loader.exec_module(analysis)
+REAL_RESOLVE_MODEL = analysis.resolve_model
+
+
+@pytest.fixture(autouse=True)
+def no_network_model_check(monkeypatch):
+    # run() confirms the model with the provider before any media call. Tests
+    # use a placeholder key, so that lookup must never leave the machine.
+    monkeypatch.setattr(analysis, "resolve_model",
+                        lambda client, requested: (requested or analysis.MODEL_DEFAULT, ""))
+
+
+def manifest(tmp_path, paths, ids=None):
+    ids = ids or [f"ad-{i}" for i in range(len(paths))]
+    rows = [{"ad_id": aid, "media_file": path, "ad_copy": f"Copy {aid}"}
+            for aid, path in zip(ids, paths)]
+    source = tmp_path / "manifest.json"
+    source.write_text(json.dumps({"ads": rows}), encoding="utf-8")
+    return source
+
+
+def small_image(path, color=(30, 60, 90)):
+    Image.new("RGB", (3, 2), color).save(path, format="PNG")
+
+
+def valid_analysis():
+    return analysis.AdAnalysis(
+        summary="Observed summary", hook="Opening", mechanic="Demonstration", setting="Home",
+        emotion="Curiosity", emotion_evidence="Question in copy", product_role="Shown",
+        payoff="Result shown", cta="Not shown", spoken_words="None", overlay_text="None",
+        limitations=[], beats=[],
+    )
+
+
+def run_manifest(source, out, *, model=None, dry=False, skip_cluster=True, client=None, unique_limit=None):
+    args = analysis.parser().parse_args([
+        "--manifest", str(source), "--out", str(out), "--limit", "20",
+        *( ["--model", model] if model else []),
+        *( ["--unique-limit", str(unique_limit)] if unique_limit is not None else []),
+        *( ["--dry-run"] if dry else []),
+        *( ["--skip-cluster"] if skip_cluster else []),
+    ])
+    return analysis.run(args, client=client)
+
+
+def capture_file(tmp_path, rows):
+    source = tmp_path / "capture.json"
+    source.write_text(json.dumps({"ads": rows}), encoding="utf-8")
+    return source
+
+
+def run_capture(source, out, *, limit=20, unique_limit=None):
+    args = analysis.parser().parse_args([
+        "--capture", str(source), "--out", str(out), "--limit", str(limit), "--skip-cluster",
+        *( ["--unique-limit", str(unique_limit)] if unique_limit is not None else []),
+    ])
+    return analysis.run(args)
+
+
+def fake_capture_download(calls, color=(30, 60, 90)):
+    def download(row, dest):
+        calls.append(row.get("_image_url"))
+        dest.mkdir(parents=True, exist_ok=True)
+        path = dest / "creative.jpg"
+        Image.new("RGB", (3, 2), color).save(path, format="JPEG")
+        return {"media_file": str(path.resolve()), "media_type": "IMAGE", "snapshot_card_count": 0}
+    return download
+
+
+def test_exact_duplicate_media_analyzed_once_and_retained_per_ad(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    source_file = tmp_path / "asset.png"
+    small_image(source_file)
+    source = manifest(tmp_path, ["asset.png", "asset.png"], ids=["first", "second"])
+    calls = []
+
+    def fake_analyze(*args, **kwargs):
+        calls.append(args[1])
+        return valid_analysis()
+
+    monkeypatch.setattr(analysis, "analyze_media", fake_analyze)
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 0
+    result = json.loads((out / "analysis.json").read_text())
+    assert len(calls) == 1
+    assert [row["ad_id"] for row in result["ads"]] == ["first", "second"]
+    assert result["coverage"] == {"selected": 2, "reviewed": 2, "unavailable": 0,
+                                  "unique_executions": 1, "ranking_verified": False}
+
+
+def test_rerun_cache_and_model_change(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    small_image(tmp_path / "asset.png")
+    source = manifest(tmp_path, ["asset.png"])
+    calls = []
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (calls.append(args[4]) or valid_analysis()))
+    out = tmp_path / "out"
+    assert run_manifest(source, out, model="model-a") == 0
+    assert run_manifest(source, out, model="model-a") == 0
+    assert calls == ["model-a"]
+    assert run_manifest(source, out, model="model-b") == 0
+    assert calls == ["model-a", "model-b"]
+
+
+def test_unsafe_local_manifest_path_rejected_before_media_analysis(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    source = manifest(tmp_path, ["../outside.png"])
+    calls = []
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: calls.append(args))
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 1
+    result = json.loads((out / "analysis.json").read_text())
+    assert calls == []
+    assert result["ads"][0]["status"] == "unavailable"
+
+
+def test_provider_429_stops_calls_but_accounts_for_all_selected_ids(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    small_image(tmp_path / "a.png")
+    small_image(tmp_path / "b.png", (80, 20, 10))
+    source = manifest(tmp_path, ["a.png", "b.png"], ids=["one", "two"])
+    calls = []
+
+    def raise_quota(*args, **kwargs):
+        calls.append(args[1])
+        raise RuntimeError("provider failed") if False else type("ProviderError", (Exception,), {"code": 429})("quota")
+
+    monkeypatch.setattr(analysis, "analyze_media", raise_quota)
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 1
+    result = json.loads((out / "analysis.json").read_text())
+    assert len(calls) == 1
+    assert [row["ad_id"] for row in result["ads"]] == ["one", "two"]
+    assert result["coverage"]["selected"] == 2
+    assert result["coverage"]["unavailable"] == 2
+    assert "Not attempted" in result["ads"][1]["error"]
+
+
+@pytest.mark.parametrize("families", [
+    [{"name": "x", "ad_ids": ["a", "a"]}],
+    [{"name": "x", "ad_ids": ["a"]}],
+])
+def test_family_assignments_reject_duplicate_or_missing_ids(families):
+    with pytest.raises(ValueError, match="exactly once"):
+        analysis.validate_families(families, ["a", "b"])
+
+
+def test_timestamp_nan_reversed_and_out_of_duration_rejected():
+    beat_values = [float("nan"), 3]
+    with pytest.raises(ValueError):
+        analysis.Beat(start_seconds=beat_values[0], end_seconds=4, role="x", observation="x", dialogue="x", overlay="x")
+    valid = valid_analysis()
+    valid.beats = [analysis.Beat(start_seconds=3, end_seconds=2, role="x", observation="x", dialogue="x", overlay="x")]
+    with pytest.raises(ValueError, match="reversed"):
+        analysis.validate_analysis(valid, 4)
+    valid.beats = [analysis.Beat(start_seconds=0, end_seconds=8, role="x", observation="x", dialogue="x", overlay="x")]
+    with pytest.raises(ValueError, match="duration"):
+        analysis.validate_analysis(valid, 4)
+
+
+def test_dry_run_needs_no_dotenv_key_and_makes_no_network_calls(monkeypatch, tmp_path, capsys):
+    source = manifest(tmp_path, ["not-downloaded.png"])
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(analysis, "read_config", lambda *_: pytest.fail("dry-run must not read config"))
+    monkeypatch.setattr(analysis, "download_asset", lambda *_: pytest.fail("dry-run must not download"))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *_: pytest.fail("dry-run must not call model"))
+    assert run_manifest(source, tmp_path / "out", dry=True) == 0
+    assert json.loads(capsys.readouterr().out)["selected_records"] == 1
+
+
+def test_capture_resume_reuses_verified_local_asset_if_download_later_fails(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    source = capture_file(tmp_path, [{"ad_id": "resume", "_image_url": "https://scontent.fbcdn.net/asset.jpg"}])
+    out = tmp_path / "out"
+    downloads, analyses = [], []
+    monkeypatch.setattr(analysis, "download_asset", fake_capture_download(downloads))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (analyses.append(args[1]) or valid_analysis()))
+    assert run_capture(source, out) == 0
+    monkeypatch.setattr(analysis, "download_asset", lambda *_: pytest.fail("matching verified receipt should avoid downloader"))
+    assert run_capture(source, out) == 0
+    result = json.loads((out / "analysis.json").read_text())
+    assert downloads == ["https://scontent.fbcdn.net/asset.jpg"]
+    assert len(analyses) == 1
+    assert result["ads"][0]["status"] == "reviewed"
+
+
+def test_changed_capture_url_invalidates_asset_receipt_and_redownloads(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    rows = [{"ad_id": "url-change", "_image_url": "https://scontent.fbcdn.net/first.jpg"}]
+    source = capture_file(tmp_path, rows)
+    out = tmp_path / "out"
+    downloads, analyses = [], []
+    monkeypatch.setattr(analysis, "download_asset", fake_capture_download(downloads, (10, 20, 30)))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (analyses.append(args[1]) or valid_analysis()))
+    assert run_capture(source, out) == 0
+    rows[0]["_image_url"] = "https://scontent.fbcdn.net/second.jpg"
+    source.write_text(json.dumps({"ads": rows}), encoding="utf-8")
+    monkeypatch.setattr(analysis, "download_asset", fake_capture_download(downloads, (80, 90, 100)))
+    assert run_capture(source, out) == 0
+    assert downloads == ["https://scontent.fbcdn.net/first.jpg", "https://scontent.fbcdn.net/second.jpg"]
+    assert len(analyses) == 2
+
+
+def test_tampered_capture_asset_bytes_invalidate_receipt_and_redownload(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    source = capture_file(tmp_path, [{"ad_id": "tampered", "_image_url": "https://scontent.fbcdn.net/asset.jpg"}])
+    out = tmp_path / "out"
+    downloads = []
+    monkeypatch.setattr(analysis, "download_asset", fake_capture_download(downloads))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: valid_analysis())
+    assert run_capture(source, out) == 0
+    asset_path = next((out / "media").glob("*/creative.jpg"))
+    Image.new("RGB", (3, 2), (250, 1, 2)).save(asset_path, format="JPEG")
+    assert run_capture(source, out) == 0
+    assert downloads == ["https://scontent.fbcdn.net/asset.jpg"] * 2
+
+
+def test_unique_limit_counts_distinct_reviewed_media_and_stops_after_target(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    rows = [
+        {"ad_id": "one", "_image_url": "https://scontent.fbcdn.net/shared-a.jpg"},
+        {"ad_id": "two", "_image_url": "https://scontent.fbcdn.net/shared-b.jpg"},
+        {"ad_id": "three", "_image_url": "https://scontent.fbcdn.net/distinct.jpg"},
+        {"ad_id": "four", "_image_url": "https://scontent.fbcdn.net/never.jpg"},
+    ]
+    source = capture_file(tmp_path, rows)
+    downloads, analyses = [], []
+
+    def download(row, dest):
+        downloads.append(row["_image_url"])
+        color = (1, 2, 3) if row["ad_id"] in {"one", "two"} else (100, 110, 120)
+        return fake_capture_download([], color)(row, dest)
+
+    monkeypatch.setattr(analysis, "download_asset", download)
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (analyses.append(args[1]) or valid_analysis()))
+    out = tmp_path / "out"
+    assert run_capture(source, out, limit=4, unique_limit=2) == 0
+    result = json.loads((out / "analysis.json").read_text())
+    assert len(result["ads"]) == 3
+    assert [row["ad_id"] for row in result["ads"]] == ["one", "two", "three"]
+    assert result["coverage"]["unique_executions"] == 2
+    assert result["capture"]["stopped_at_unique_target"] is True
+    assert "never.jpg" not in downloads
+    assert len(analyses) == 2
+
+
+def test_unique_target_shortfall_is_reported_explicitly(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    rows = [{"ad_id": f"copy-{i}", "_image_url": f"https://scontent.fbcdn.net/copy-{i}.jpg"} for i in range(3)]
+    source = capture_file(tmp_path, rows)
+    monkeypatch.setattr(analysis, "download_asset", fake_capture_download([], (20, 30, 40)))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: valid_analysis())
+    out = tmp_path / "out"
+    assert run_capture(source, out, limit=3, unique_limit=2) == 0
+    result = json.loads((out / "analysis.json").read_text())
+    assert result["coverage"]["unique_executions"] == 1
+    assert any("did not yield the requested 2 distinct reviewed executions" in item for item in result["limitations"])
+
+
+def test_gemini_wire_schema_strips_nested_additional_properties_but_local_validation_stays_strict(tmp_path):
+    class FakeModels:
+        config = None
+
+        def generate_content(self, **kwargs):
+            self.config = kwargs["config"]
+            return SimpleNamespace(text=json.dumps({
+                **valid_analysis().model_dump(),
+                "beats": [{"start_seconds": 0, "end_seconds": 0, "role": "hook",
+                           "observation": "Visible", "dialogue": "", "overlay": "", "unexpected": "field"}],
+            }), usage_metadata=None)
+
+    client = SimpleNamespace(models=FakeModels())
+    source_schema = analysis.AdAnalysis.model_json_schema()
+
+    def contains_additional_properties(value):
+        if isinstance(value, dict):
+            return "additionalProperties" in value or any(contains_additional_properties(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_additional_properties(item) for item in value)
+        return False
+
+    assert contains_additional_properties(source_schema)
+    with pytest.raises(ValueError, match="extra"):
+        analysis.generate(client, "example-model", "example input", analysis.AdAnalysis, tmp_path, "media")
+    wire_schema = client.models.config.response_schema
+    assert not contains_additional_properties(wire_schema)
+
+
+def test_all_zero_video_timings_are_not_accepted_as_a_storyboard():
+    result = valid_analysis()
+    result.beats = [analysis.Beat(start_seconds=0, end_seconds=0, role='hook',
+                                 observation='Visible scene', dialogue='', overlay='')]
+    with pytest.raises(ValueError, match='all zero'):
+        analysis.validate_analysis(result, 86.12)
+    assert analysis.validate_analysis(result, 0) is result
+
+
+def test_elapsed_video_seconds_remain_valid():
+    result = valid_analysis()
+    result.beats = [analysis.Beat(start_seconds=74, end_seconds=149, role='practice',
+                                 observation='Visible scene', dialogue='', overlay='')]
+    assert analysis.validate_analysis(result, 174.08) is result
+    result.beats[0].end_seconds = 229
+    with pytest.raises(ValueError, match='exceeds'):
+        analysis.validate_analysis(result, 174.08)
+
+
+class _ProviderError(Exception):
+    def __init__(self, code, status=''):
+        super().__init__('raw provider text that must not be shown: key=SECRET')
+        self.code, self.status = code, status
+
+
+def _models_client(available):
+    def get(model):
+        if model not in available:
+            raise _ProviderError(404, 'NOT_FOUND')
+        return SimpleNamespace(name=model)
+    return SimpleNamespace(models=SimpleNamespace(get=get))
+
+
+def test_default_model_falls_back_when_unavailable_to_the_key():
+    model, note = REAL_RESOLVE_MODEL(_models_client({'gemini-2.5-flash'}), '')
+    assert model == 'gemini-2.5-flash'
+    assert analysis.MODEL_DEFAULT in note and 'gemini-2.5-flash' in note
+    assert REAL_RESOLVE_MODEL(_models_client({analysis.MODEL_DEFAULT}), '') == (analysis.MODEL_DEFAULT, '')
+
+
+def test_user_chosen_model_is_never_swapped():
+    with pytest.raises(_ProviderError):
+        REAL_RESOLVE_MODEL(_models_client({analysis.MODEL_DEFAULT}), 'gemini-2.5-flash')
+
+
+def test_provider_error_shows_code_and_hint_but_not_raw_text():
+    text = analysis.provider_error(_ProviderError(404, 'NOT_FOUND'))
+    assert text.startswith('HTTP 404 NOT_FOUND') and 'GEMINI_MODEL' in text
+    assert 'SECRET' not in text
+    assert 'SECRET' not in analysis.provider_error(_ProviderError(503, 'bad status: key=SECRET'))
+    assert 'timeout-seconds' in analysis.provider_error(type('ReadTimeout', (Exception,), {})())
+
+
+def test_generate_retries_temporary_overload_then_succeeds(tmp_path, monkeypatch):
+    calls, sleeps = [], []
+    def generate_content(**kwargs):
+        calls.append(1)
+        if len(calls) < 3:
+            raise _ProviderError(503, 'UNAVAILABLE')
+        return SimpleNamespace(text=valid_analysis().model_dump_json(), usage_metadata=None)
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    monkeypatch.setattr(analysis.time, 'sleep', sleeps.append)
+    result = analysis.generate(client, 'm', ['x'], analysis.AdAnalysis, tmp_path, 'media')
+    assert result.summary == 'Observed summary'
+    assert len(calls) == 3 and sleeps == list(analysis.RETRY_DELAYS_SECONDS[:2])
+
+
+def test_generate_does_not_retry_a_missing_model(tmp_path, monkeypatch):
+    calls = []
+    def generate_content(**kwargs):
+        calls.append(1)
+        raise _ProviderError(404, 'NOT_FOUND')
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    monkeypatch.setattr(analysis.time, 'sleep', lambda s: None)
+    with pytest.raises(_ProviderError):
+        analysis.generate(client, 'm', ['x'], analysis.AdAnalysis, tmp_path, 'media')
+    assert len(calls) == 1
+
+
+def test_timeout_defaults_to_ten_minutes_and_is_bounded(tmp_path, monkeypatch):
+    monkeypatch.delenv('GEMINI_TIMEOUT_SECONDS', raising=False)
+    assert analysis.read_timeout(tmp_path / '.env') == 600
+    assert analysis.read_timeout(tmp_path / '.env', 900) == 900
+    with pytest.raises(ValueError):
+        analysis.read_timeout(tmp_path / '.env', 5)
+
+
+def test_active_only_changes_the_ad_library_url():
+    import capture_engine
+    assert 'active_status=all' in capture_engine._make_ad_library_url('123', 'impressions')
+    assert 'active_status=active' in capture_engine._make_ad_library_url('123', 'impressions', active_only=True)
+
+
+def test_unavailable_model_stops_before_any_media_call(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    image = tmp_path / "a.png"
+    small_image(image)
+    source = manifest(tmp_path, ["a.png"])
+    def unavailable(client, requested):
+        raise _ProviderError(404, 'NOT_FOUND')
+    monkeypatch.setattr(analysis, "resolve_model", unavailable)
+    monkeypatch.setattr(analysis, "analyze_media", lambda *a, **k: pytest.fail("no media call after a failed model check"))
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 1
+    printed = capsys.readouterr().out
+    assert "HTTP 404 NOT_FOUND" in printed and "SECRET" not in printed
+    result = json.loads((out / "analysis.json").read_text())
+    assert any("HTTP 404" in line for line in result["limitations"])
+
+
+def test_media_download_error_is_not_described_as_a_model_error():
+    import urllib.error
+    exc = urllib.error.HTTPError('https://example.invalid/a.mp4?sig=SECRET', 403, 'Forbidden', None, None)
+    text = analysis.provider_error(exc)
+    assert text.startswith('Media download failed (HTTP 403)')
+    assert 'API key' not in text and 'SECRET' not in text
+
+
+def test_stalled_processing_and_network_failures_get_their_own_hint():
+    assert 'timeout-seconds' not in analysis.provider_error(analysis.ProcessingStalled('x'))
+    assert 'network' in analysis.provider_error(type('ConnectError', (Exception,), {})())
+
+
+def test_zero_timeout_is_rejected_not_ignored(tmp_path, monkeypatch):
+    monkeypatch.delenv('GEMINI_TIMEOUT_SECONDS', raising=False)
+    with pytest.raises(ValueError):
+        analysis.read_timeout(tmp_path / '.env', 0)
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS', '0')
+    with pytest.raises(ValueError):
+        analysis.read_timeout(tmp_path / '.env')
+
+
+def test_failed_model_check_accounts_for_every_selected_ad(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    small_image(tmp_path / "a.png")
+    small_image(tmp_path / "b.png", (80, 20, 10))
+    source = manifest(tmp_path, ["a.png", "b.png"], ids=["one", "two"])
+    def unavailable(client, requested):
+        raise _ProviderError(404, 'NOT_FOUND')
+    monkeypatch.setattr(analysis, "resolve_model", unavailable)
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 1
+    result = json.loads((out / "analysis.json").read_text())
+    assert [ad["ad_id"] for ad in result["ads"]] == ["one", "two"]
+    assert all("Not attempted" in ad["error"] for ad in result["ads"])
+
+
+def test_offline_model_check_does_not_block_a_cached_rerun(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    small_image(tmp_path / "a.png")
+    source = manifest(tmp_path, ["a.png"])
+    monkeypatch.setattr(analysis, "analyze_media", lambda *a, **k: valid_analysis())
+    out = tmp_path / "out"
+    assert run_manifest(source, out) == 0
+    def offline(client, requested):
+        raise type('ConnectError', (Exception,), {})('no route')
+    monkeypatch.setattr(analysis, "resolve_model", offline)
+    monkeypatch.setattr(analysis, "analyze_media", lambda *a, **k: pytest.fail("cached read must be reused"))
+    assert run_manifest(source, out) == 0

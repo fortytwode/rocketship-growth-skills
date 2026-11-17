@@ -1,0 +1,12 @@
+{
+  "concept": "Illustrative single-clip reconstruction; supply your own source file",
+  "scenes": [
+    {
+      "id": "reference",
+      "line": "Replace this description with the exact verified speech, or explicitly record silence",
+      "visual": "Describe the inspected source action and the user's requested change",
+      "provenance": "client-owned",
+      "source": "assets/reference.mp4"
+    }
+  ]
+}
