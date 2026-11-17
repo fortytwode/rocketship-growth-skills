@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "edition": "review-2026-11-17",
+  "edition": "v1.0.0",
   "skills": {
     "competitor-ad-analysis": {
       "version": "1.1.0",
@@ -29,7 +29,7 @@
       }
     },
     "creative-from-winner": {
-      "version": "1.0.0 draft",
+      "version": "1.0.0",
       "source": "skills/creative-from-winner",
       "zip": "dist/creative-from-winner.zip",
       "archive_sha256": "6abbfd856baee132a12ff35282cecfd57904aa23ec3c5beab33a6c8bb1d3f964",
@@ -42,7 +42,7 @@
       }
     },
     "account-structure-audit": {
-      "version": "1.0.0 draft wrapper",
+      "version": "1.0.0",
       "source": "skills/account-structure-audit",
       "zip": "dist/account-structure-audit.zip",
       "archive_sha256": "908406d6762249d2d012d4a374a11cea3ab194ba2475518dfb3699920fd1d99f",
@@ -55,7 +55,7 @@
       }
     },
     "humanizer": {
-      "version": "1.0.0 draft",
+      "version": "1.0.0",
       "source": "skills/humanizer",
       "zip": "dist/humanizer.zip",
       "archive_sha256": "4eb34deb60e85b73745b8bf4a418f23d4171a1c48e6f50ef04b34734b8fed2e6",
@@ -69,7 +69,7 @@
       }
     },
     "video-to-video": {
-      "version": "1.0.0 draft",
+      "version": "1.0.0",
       "source": "skills/video-to-video",
       "zip": "dist/video-to-video.zip",
       "archive_sha256": "45350cb0501eb16d20b8544a4767ff88a0f78e18e4c4d1d59b30c467e30a8f66",
@@ -88,7 +88,7 @@
       }
     },
     "creative-opportunity-brief": {
-      "version": "1.0.0 draft",
+      "version": "1.0.0",
       "source": "skills/creative-opportunity-brief",
       "zip": "dist/creative-opportunity-brief.zip",
       "archive_sha256": "5465097de1cdd96b845022322336f9d1d646229b20b41c934e11006c534430a5",

@@ -2,7 +2,7 @@
 
 Practical app-growth workflows for your AI assistant: competitor research, customer insights, creative development, video remakes, Meta account structure and clear writing.
 
-**Review edition:** this collection is private while Shamanth reviews the website and source. The [website review catalogue](https://www.rocketshiphq.com/?page_id=30511&preview=true) requires WordPress sign-in. Matching package submissions are in [Mission Control → Your submissions](https://missioncontrol.rocketshiphq.com/skills#submissions). Existing signed internal editions stay available there separately.
+Browse the [RocketShip skills catalogue](https://www.rocketshiphq.com/tools/skills/) for examples, requirements and downloads. Each skill ZIP is available from [the public release](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.0), with no GitHub account required to download.
 
 These are free skill folders. Supply your own files, assistant and any account access or provider keys a workflow requires. RocketShip accounts and client data are not included.
 
@@ -17,7 +17,7 @@ These are free skill folders. Supply your own files, assistant and any account a
 
 ## Use a skill
 
-1. Browse the [skills/ folder](skills/) and choose a workflow. Download its matching ZIP from [dist/](dist/) or clone this repository.
+1. Browse the [skills/ folder](skills/) and choose a workflow. Download its matching ZIP from [the release downloads](https://github.com/fortytwode/rocketship-growth-skills/releases/tag/v1.0.0) or clone this repository.
 2. Ask your assistant to read that folder's `SKILL.md` and `SETUP.md`. Follow its setup instructions before running the workflow.
 3. Supply your inputs and review the result, including anything the assistant could not verify.
 
@@ -34,8 +34,8 @@ Creative Opportunity Brief reuses the review collection method behind Sherlock, 
 | Place | What belongs there |
 |---|---|
 | [RocketShip website](https://www.rocketshiphq.com/tools/skills/) | The front door: catalogue, requirements, examples, articles and links to skill source/downloads |
-| This repository | Reusable `skills/<name>/` source, setup, references, examples, license and matching ZIPs in `dist/` |
-| [Mission Control](https://missioncontrol.rocketshiphq.com/skills) | Connected internal editions and matching review submissions; no provider access or private client data is granted by a public package |
+| This repository | Reusable `skills/<name>/` source, setup, references, examples, license and versioned release ZIPs (also retained in `dist/`) |
+| [Mission Control](https://missioncontrol.rocketshiphq.com/skills) | Connected team editions; public packages use your own files, tools and accounts |
 
 The existing [AI-driven creative pack](https://github.com/fortytwode/ai-driven-creatives-skill-pack), [account-audit runtime](https://github.com/fortytwode/meta-ads-account-audit) and [Mobile Growth MCP](https://www.rocketshiphq.com/mobile-growth-mcp/) retain their existing homes. This collection links them where relevant; it does not copy unrelated apps or private operations skills.
 
