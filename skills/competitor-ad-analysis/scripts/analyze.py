@@ -14,6 +14,8 @@ import urllib.error
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+import httpx
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from media import download_asset, prepare_local_media, MAX_BYTES
 from report import write_report
@@ -154,10 +156,24 @@ def provider_error(exc) -> str:
         hint = ERROR_HINTS.get(code, 'check model access, quota and service availability')
         return f"HTTP {code}{' ' + status if status else ''}: {hint}"
     if 'timeout' in name.lower():
-        return f'{name}: no response within the time limit; rerun, or raise --timeout-seconds'
-    if 'connect' in name.lower() or 'network' in name.lower():
+        return f'{name}: no response within the time limit; capacity or network may be unavailable'
+    if isinstance(exc, (httpx.TransportError, ConnectionError)) or 'connect' in name.lower() or 'network' in name.lower():
         return f'{name}: could not reach the provider; check your network connection'
     return f'{name}: media or analysis unavailable; check source freshness and the local file'
+
+
+class ProviderStopped(Exception):
+    """New model calls are disabled after an earlier provider failure."""
+
+
+def stops_provider(exc):
+    if isinstance(exc, urllib.error.HTTPError):
+        return False  # Public media download failure, not a Gemini response.
+    code = getattr(exc, 'code', None)
+    name = type(exc).__name__.lower()
+    return (isinstance(exc, (httpx.TransportError, TimeoutError, ConnectionError))
+            or (isinstance(code, int) and code >= 400)
+            or any(word in name for word in ('timeout', 'connect', 'network')))
 
 
 class ProcessingStalled(Exception):
@@ -310,7 +326,7 @@ def validate_families(families, reviewed_ids):
     return families
 
 
-def cluster(client, ads, model, output, usage_logger=None):
+def cluster(client, ads, model, output, usage_logger=None, *, allow_provider=True):
     reviewed = [a for a in ads if a['status'] == 'reviewed']
     if not reviewed:
         return []
@@ -324,6 +340,8 @@ def cluster(client, ads, model, output, usage_logger=None):
     cache = output / 'cache' / f'families-{fingerprint}.json'
     if cache.is_file():
         return validate_families(json.loads(cache.read_text()), [a['ad_id'] for a in reviewed])
+    if not allow_provider:
+        raise ProviderStopped()
     prompt = '''Group these reviewed ad observations into creative families based on their
 persuasive mechanism and narrative sequence. Keep setting and emotion separate.
 Define each family and name shared story functions only when multiple executions support
@@ -368,7 +386,7 @@ def normalize(row, supplied):
             'source_url': str(row.get('source_url' if supplied else 'ad_snapshot_url') or ''),
             'launch_date': str(row.get('launch_date' if supplied else 'ad_delivery_start_date') or ''),
             'ad_copy': str(row.get('ad_copy') or '') if supplied else '\n'.join(row.get('ad_creative_bodies') or []),
-            'status': 'unavailable', 'error': '', 'media_file': '', 'frames': [], 'analysis': {}}
+            'status': 'unavailable', 'analysis_outcome': 'not_attempted', 'error': '', 'media_file': '', 'frames': [], 'analysis': {}}
 
 
 def local_asset(row, base, dest):
@@ -420,7 +438,9 @@ def capture_asset(row, dest):
 def coverage(ads, ranking_verified):
     reviewed = [a for a in ads if a['status'] == 'reviewed']
     return {'selected': len(ads), 'reviewed': len(reviewed), 'unavailable': len(ads) - len(reviewed),
-            'unique_executions': len({a['execution_id'] for a in reviewed}), 'ranking_verified': ranking_verified}
+            'unique_executions': len({a['execution_id'] for a in reviewed}), 'ranking_verified': ranking_verified,
+            'failed': sum(a.get('analysis_outcome') == 'failed' for a in ads),
+            'not_attempted': sum(a.get('analysis_outcome') == 'not_attempted' for a in ads)}
 
 
 def parser():
@@ -488,50 +508,43 @@ def run(args, *, client=None, usage_logger=None):
                           'sort_mode': data.get('sort_mode', 'supplied'), 'sort_parameters_retained': bool(poll.get('sort_verified')),
                           'available_records': len(data['ads']), 'raw_record_cap': len(rows), 'unique_target': args.unique_limit, 'date_from': args.since, 'date_to': args.until,
                           'input_sha256': digest(source)},
-              'coverage': coverage([], ranking), 'ads': [], 'families': [], 'limitations': limitations}
+              'coverage': coverage([], ranking), 'ads': [], 'families': [], 'limitations': limitations,
+              'run_outcome': 'in_progress'}
     if not rows:
+        result['run_outcome'] = 'blocked'
         result['limitations'].append('No eligible source records. Capture may be empty/blocked or the date range may exclude all ads.')
         atomic_json(output / 'analysis.json', result)
         write_report(output / 'analysis.json', output)
         print('No eligible records. A coverage report was saved; no model calls were made.')
         return 2
+    check_failure = ''
+    check_http_failure = False
     owns_client = client is None
     if owns_client:
         from google import genai
         from google.genai import types
-        client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=timeout_seconds * 1000))
+        client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=timeout_seconds * 1000,
+            retry_options=types.HttpRetryOptions(attempts=1)))
         model_note, check_failure = '', ''
         try:
             model, model_note = resolve_model(client, requested_model)
         except Exception as exc:
-            if isinstance(getattr(exc, 'code', None), int):
-                check_failure = provider_error(exc)
-            else:
-                # Could not ask (offline, for example). Cached reads need no
-                # network, so continue; a real call reports its own error.
-                print(f'Could not confirm the model in advance ({provider_error(exc)}). Continuing with {model}.', flush=True)
+            check_failure = provider_error(exc)
+            check_http_failure = isinstance(getattr(exc, 'code', None), int)
         if check_failure:
-            client.close()
-            result['limitations'].append(f'No model call was made. {check_failure}.')
-            for row in rows:
-                skipped = normalize(row, supplied)
-                skipped['error'] = 'Not attempted because the model check failed before this run started.'
-                result['ads'].append(skipped)
-            result['coverage'] = coverage(result['ads'], ranking)
-            atomic_json(output / 'analysis.json', result)
-            write_report(output / 'analysis.json', output)
-            print(f'Model check failed for {model}. {check_failure}. No credentials were displayed.')
-            return 1
+            result['limitations'].append(f'Model metadata check failed ({check_failure}). Only matching cached reads can be restored.')
+            print(f'Model metadata check failed for {model}. {check_failure}. No credentials were displayed.', flush=True)
         result['model'] = model
         if model_note:
             result['limitations'].append(model_note)
             print(model_note, flush=True)
-    failures = False
-    provider_stopped = False
+    failures = check_http_failure
+    provider_stopped = bool(check_failure)
     try:
         for i, row in enumerate(rows):
             ad = normalize(row, supplied)
             folder = output / 'media' / hashlib.sha256(ad['ad_id'].encode()).hexdigest()[:20]
+            provider_request_failed = False
             try:
                 folder.resolve().relative_to(output)
                 if supplied:
@@ -552,8 +565,14 @@ def run(args, *, client=None, usage_logger=None):
                 if cache.is_file():
                     analysis = validate_analysis(AdAnalysis.model_validate_json(cache.read_text()), prepared['duration_seconds'])
                 else:
-                    analysis = analyze_media(client, path, asset['media_type'], prepared['duration_seconds'],
-                                             model, output, usage_logger)
+                    if provider_stopped:
+                        raise ProviderStopped()
+                    try:
+                        analysis = analyze_media(client, path, asset['media_type'], prepared['duration_seconds'],
+                                                 model, output, usage_logger)
+                    except Exception:
+                        provider_request_failed = True
+                        raise
                     atomic_json(cache, analysis.model_dump())
                 ad['analysis'] = analysis.model_dump()
                 if asset['snapshot_card_count'] > 1:
@@ -564,21 +583,20 @@ def run(args, *, client=None, usage_logger=None):
                 prepared = prepare_local_media(path, ad_id=ad['ad_id'], media_type=asset['media_type'], output_directory=folder, timestamps=times)
                 ad['frames'] = [{'path': Path(f['path']).relative_to(output).as_posix(), 'seconds': f['seconds']} for f in prepared['frames']]
                 ad['status'] = 'reviewed'
+                ad['analysis_outcome'] = 'reviewed'
+            except ProviderStopped:
+                failures = True
+                ad['error'] = 'Not attempted because the provider failed earlier in this run; no new model call was made.'
             except Exception as exc:
                 failures = True
                 # No raw provider/CDN exceptions: they can contain credentials or signed URLs.
-                ad['error'] = provider_error(exc)
+                ad['error'] = (provider_error(exc) if provider_request_failed or isinstance(exc, urllib.error.HTTPError)
+                               else f'Local media/cache preparation failed ({type(exc).__name__}); check source freshness and the saved media.')
                 print(f"Record {i + 1}: {ad['error']}", flush=True)
-                code = getattr(exc, 'code', None)
-                if isinstance(code, int) and code >= 400:
+                ad['analysis_outcome'] = 'failed'
+                if provider_request_failed and stops_provider(exc):
                     provider_stopped = True
-                    result['limitations'].append(f'Stopped early after a provider error ({provider_error(exc)}). Completed reads are cached, so a rerun continues from here.')
-                    result['ads'].append(ad)
-                    for remaining in rows[i + 1:]:
-                        skipped = normalize(remaining, supplied)
-                        skipped['error'] = 'Not attempted because the provider returned an error earlier in this run.'
-                        result['ads'].append(skipped)
-                    break
+                    result['limitations'].append(f'New model calls stopped after a provider error ({provider_error(exc)}). Matching cached reads are retained; other records are not attempted. A rerun retries uncached reads.')
             result['ads'].append(ad)
             result['coverage'] = coverage(result['ads'], ranking)
             atomic_json(output / 'analysis.json', result)
@@ -588,9 +606,13 @@ def run(args, *, client=None, usage_logger=None):
                 break
         if args.unique_limit and coverage(result['ads'], ranking)['unique_executions'] < args.unique_limit:
             result['limitations'].append(f'The selected capture did not yield the requested {args.unique_limit} distinct reviewed executions. Use the actual coverage counts.')
-        if not args.skip_cluster and not provider_stopped:
+        if not args.skip_cluster:
             try:
-                result['families'] = cluster(client, result['ads'], model, output, usage_logger)
+                result['families'] = cluster(client, result['ads'], model, output, usage_logger,
+                                             allow_provider=not provider_stopped)
+            except ProviderStopped:
+                failures = True
+                result['limitations'].append('Family clustering was not attempted: the provider is unavailable and no matching family cache exists. Per-ad observations are retained.')
             except Exception as exc:
                 failures = True
                 result['limitations'].append(f'Family clustering unavailable ({provider_error(exc)}); per-ad observations are retained. Rerun to retry from cached reads.')
@@ -598,11 +620,12 @@ def run(args, *, client=None, usage_logger=None):
             result['limitations'].append('Family clustering was skipped; do not treat per-ad mechanic labels as a reconciled global taxonomy.')
     finally:
         result['coverage'] = coverage(result['ads'], ranking)
+        result['run_outcome'] = ('partial' if result['coverage']['reviewed'] else 'blocked') if failures else 'complete'
         atomic_json(output / 'analysis.json', result)
         write_report(output / 'analysis.json', output)
         if owns_client:
             client.close()
-    print(f"Report: {output / 'index.html'} | reviewed={result['coverage']['reviewed']} | unavailable={result['coverage']['unavailable']}")
+    print(f"Report: {output / 'index.html'} | reviewed={result['coverage']['reviewed']} | unavailable={result['coverage']['unavailable']} | outcome={result['run_outcome']}")
     return 1 if failures else 0
 
 

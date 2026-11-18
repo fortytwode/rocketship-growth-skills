@@ -107,19 +107,19 @@ def check(project_dir: Path, *, media_only: bool = False) -> int:
         for problem in problems:
             print(f"ERROR: {problem}", file=sys.stderr)
         return 1
-    print("Local prerequisites look ready. This did not contact Gemini: run `python scripts/setup.py --check-model` to confirm your key can call a model.")
+    print("Local prerequisites look ready. This did not contact Gemini: run `python scripts/setup.py --check-model` to check model metadata access.")
     return 0
 
 
 def check_model(project_dir: Path) -> int:
-    """Confirm the key can reach a usable model. One free metadata call per model tried."""
+    """Check model metadata access, not generation capacity. One free metadata call per model tried."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
         import analyze
         from google import genai
         from google.genai import types
         key, requested = analyze.read_config(project_dir / ".env")
-        client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=60000))
+        client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=60000, retry_options=types.HttpRetryOptions(attempts=1)))
     except Exception as exc:
         print(f"ERROR: Could not start the model check ({type(exc).__name__}). Run `python scripts/setup.py --check` first.", file=sys.stderr)
         return 1
@@ -133,7 +133,7 @@ def check_model(project_dir: Path) -> int:
     if note:
         print(note)
         print(f"To make this permanent, set GEMINI_MODEL={model} in .env.")
-    print(f"Model ready: {model}")
+    print(f"Model metadata accessible: {model}. Generation capacity has not been tested.")
     return 0
 
 
@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--media-only", action="store_true", help="With --check, skip the Chrome requirement for imported-media review")
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--check", action="store_true", help="Check local packages, API key presence, and Chrome; no network calls")
-    actions.add_argument("--check-model", action="store_true", help="Confirm the key can call a model (free metadata call to Gemini; no media is sent)")
+    actions.add_argument("--check-model", action="store_true", help="Check model metadata access (no generation request or media sent)")
     actions.add_argument("--install", action="store_true", help="Create .venv and install requirements (uses network)")
     actions.add_argument("--init-config", action="store_true", help="Create .env and append required .gitignore rules")
     args = parser.parse_args(argv)

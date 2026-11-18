@@ -100,7 +100,7 @@ def test_exact_duplicate_media_analyzed_once_and_retained_per_ad(monkeypatch, tm
     assert len(calls) == 1
     assert [row["ad_id"] for row in result["ads"]] == ["first", "second"]
     assert result["coverage"] == {"selected": 2, "reviewed": 2, "unavailable": 0,
-                                  "unique_executions": 1, "ranking_verified": False}
+                                  "unique_executions": 1, "ranking_verified": False, "failed": 0, "not_attempted": 0}
 
 
 def test_rerun_cache_and_model_change(monkeypatch, tmp_path):
@@ -351,7 +351,7 @@ def test_provider_error_shows_code_and_hint_but_not_raw_text():
     assert text.startswith('HTTP 404 NOT_FOUND') and 'GEMINI_MODEL' in text
     assert 'SECRET' not in text
     assert 'SECRET' not in analysis.provider_error(_ProviderError(503, 'bad status: key=SECRET'))
-    assert 'timeout-seconds' in analysis.provider_error(type('ReadTimeout', (Exception,), {})())
+    assert 'capacity or network' in analysis.provider_error(type('ReadTimeout', (Exception,), {})())
 
 
 def test_generate_retries_temporary_overload_then_succeeds(tmp_path, monkeypatch):
@@ -460,3 +460,185 @@ def test_offline_model_check_does_not_block_a_cached_rerun(monkeypatch, tmp_path
     monkeypatch.setattr(analysis, "resolve_model", offline)
     monkeypatch.setattr(analysis, "analyze_media", lambda *a, **k: pytest.fail("cached read must be reused"))
     assert run_manifest(source, out) == 0
+
+@pytest.mark.parametrize('failure', [_ProviderError(503, 'UNAVAILABLE'), type('ReadTimeout', (Exception,), {})('private')])
+def test_provider_outage_blocks_new_calls_but_restores_later_cache(monkeypatch, tmp_path, failure):
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    for name, color in [('a', (10, 20, 30)), ('b', (40, 50, 60)), ('c', (70, 80, 90))]:
+        small_image(tmp_path / f'{name}.png', color)
+    source = manifest(tmp_path, ['c.png'], ids=['cached'])
+    out = tmp_path / 'out'
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    assert run_manifest(source, out) == 0
+    source = manifest(tmp_path, ['a.png', 'b.png', 'c.png'], ids=['failed', 'new', 'cached'])
+    calls = []
+    def fail(*args, **kwargs):
+        calls.append(1)
+        raise failure
+    monkeypatch.setattr(analysis, 'analyze_media', fail)
+    monkeypatch.setattr(analysis, 'generate', lambda *a, **k: pytest.fail('no new family generation during outage'))
+    assert run_manifest(source, out, skip_cluster=False) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert len(calls) == 1
+    assert [a['analysis_outcome'] for a in result['ads']] == ['failed', 'not_attempted', 'reviewed']
+    assert result['run_outcome'] == 'partial'
+    assert result['coverage']['failed'] == 1 and result['coverage']['not_attempted'] == 1
+    assert result['coverage']['reviewed'] == 1
+    assert 'not_attempted' in (out / 'index.html').read_text()
+
+
+def test_cdn_http_error_does_not_stop_next_media(monkeypatch, tmp_path):
+    import urllib.error
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    source = capture_file(tmp_path, [{'ad_id': 'bad'}, {'ad_id': 'good'}])
+    def download(row, dest):
+        if row['ad_id'] == 'bad':
+            raise urllib.error.HTTPError('https://example.invalid/?sig=SECRET', 403, 'Forbidden', None, None)
+        return fake_capture_download([])(row, dest)
+    monkeypatch.setattr(analysis, 'download_asset', download)
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    out = tmp_path / 'out'
+    assert run_capture(source, out) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert [a['status'] for a in result['ads']] == ['unavailable', 'reviewed']
+    assert 'SECRET' not in (out / 'analysis.json').read_text()
+
+
+def test_analysis_client_disables_sdk_retries(monkeypatch, tmp_path):
+    from google import genai
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    small_image(tmp_path / 'a.png')
+    source = manifest(tmp_path, ['a.png'])
+    constructors = []
+    def client(**kwargs):
+        constructors.append(kwargs)
+        return SimpleNamespace(close=lambda: None)
+    monkeypatch.setattr(genai, 'Client', client)
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    assert run_manifest(source, tmp_path / 'out') == 0
+    assert constructors[0]['http_options'].retry_options.attempts == 1
+    assert constructors[0]['http_options'].timeout == 600000
+
+
+def test_exhausted_generate_has_four_attempts_and_no_timeout_retry(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(analysis.time, 'sleep', lambda _: None)
+    def fail(**kwargs):
+        calls.append(1)
+        raise _ProviderError(503, 'UNAVAILABLE')
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=fail))
+    with pytest.raises(_ProviderError):
+        analysis.generate(client, 'm', 'x', analysis.AdAnalysis, tmp_path, 'media')
+    assert len(calls) == 4
+    calls.clear()
+    def timeout(**kwargs):
+        calls.append(1)
+        raise type('ReadTimeout', (Exception,), {})()
+    client.models.generate_content = timeout
+    with pytest.raises(Exception):
+        analysis.generate(client, 'm', 'x', analysis.AdAnalysis, tmp_path, 'media')
+    assert len(calls) == 1
+
+
+def test_failed_metadata_check_restores_cache_without_new_generation(monkeypatch, tmp_path):
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    small_image(tmp_path / 'a.png')
+    source = manifest(tmp_path, ['a.png'])
+    out = tmp_path / 'out'
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    assert run_manifest(source, out) == 0
+    def unavailable(*args):
+        raise _ProviderError(503, 'UNAVAILABLE')
+    monkeypatch.setattr(analysis, 'resolve_model', unavailable)
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: pytest.fail('cache only'))
+    assert run_manifest(source, out) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert result['ads'][0]['status'] == 'reviewed'
+    assert result['run_outcome'] == 'partial'
+
+
+@pytest.mark.parametrize('transport_error', ['ReadError', 'WriteError', 'RemoteProtocolError'])
+def test_real_httpx_read_error_stops_new_media_and_family_calls(monkeypatch, tmp_path, transport_error):
+    import httpx
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    small_image(tmp_path / 'a.png')
+    small_image(tmp_path / 'b.png', (150, 60, 30))
+    source = manifest(tmp_path, ['a.png', 'b.png'])
+    calls = []
+    def analyze(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise getattr(httpx, transport_error)('private details')
+        return valid_analysis()
+    monkeypatch.setattr(analysis, 'analyze_media', analyze)
+    monkeypatch.setattr(analysis, 'generate', lambda *a, **k: pytest.fail('no new family generation'))
+    out = tmp_path / 'out'
+    assert run_manifest(source, out, skip_cluster=False) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert len(calls) == 1
+    assert [a['analysis_outcome'] for a in result['ads']] == ['failed', 'not_attempted']
+
+
+def test_offline_rerun_restores_cached_families_without_generation(monkeypatch, tmp_path):
+    import httpx
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    small_image(tmp_path / 'a.png')
+    source = manifest(tmp_path, ['a.png', 'a.png'], ids=['one', 'two'])
+    out = tmp_path / 'out'
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    families = [{'name': 'Demo', 'definition': 'Observed', 'ad_ids': ['one', 'two'],
+                 'shared_structure': [], 'exceptions': []}]
+    monkeypatch.setattr(analysis, 'generate', lambda *a, **k: analysis.Families(families=families))
+    assert run_manifest(source, out, skip_cluster=False) == 0
+    assert json.loads((out / 'analysis.json').read_text())['families'] == families
+    def offline(*args):
+        raise httpx.ConnectError('offline')
+    monkeypatch.setattr(analysis, 'resolve_model', offline)
+    monkeypatch.setattr(analysis, 'generate', lambda *a, **k: pytest.fail('no new provider calls'))
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: pytest.fail('cached media only'))
+    assert run_manifest(source, out, skip_cluster=False) == 0
+    result = json.loads((out / 'analysis.json').read_text())
+    assert result['families'] == families
+    assert result['run_outcome'] == 'complete'
+    for cached_family in (out / 'cache').glob('families-*.json'):
+        cached_family.unlink()
+    assert run_manifest(source, out, skip_cluster=False) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert result['run_outcome'] == 'partial'
+    assert result['families'] == []
+    assert any('no matching family cache' in note for note in result['limitations'])
+
+@pytest.mark.parametrize('failure', [TimeoutError('private'), ConnectionResetError('private')])
+def test_cdn_transport_error_is_item_local(monkeypatch, tmp_path, failure):
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    source = capture_file(tmp_path, [{'ad_id': 'bad'}, {'ad_id': 'good'}])
+    def download(row, dest):
+        if row['ad_id'] == 'bad':
+            raise failure
+        return fake_capture_download([])(row, dest)
+    calls = []
+    monkeypatch.setattr(analysis, 'download_asset', download)
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: (calls.append(1) or valid_analysis()))
+    out = tmp_path / 'out'
+    assert run_capture(source, out) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert [a['analysis_outcome'] for a in result['ads']] == ['failed', 'reviewed']
+    assert len(calls) == 1
+
+
+def test_local_frame_preparation_timeout_is_item_local(monkeypatch, tmp_path):
+    monkeypatch.setenv('GEMINI_API_KEY', 'example-test-key')
+    small_image(tmp_path / 'a.png')
+    small_image(tmp_path / 'b.png', (150, 60, 30))
+    source = manifest(tmp_path, ['a.png', 'b.png'], ids=['bad', 'good'])
+    prepare = analysis.prepare_local_media
+    def prepare_local(path, **kwargs):
+        if kwargs['ad_id'] == 'bad':
+            raise TimeoutError('private')
+        return prepare(path, **kwargs)
+    monkeypatch.setattr(analysis, 'prepare_local_media', prepare_local)
+    monkeypatch.setattr(analysis, 'analyze_media', lambda *a, **k: valid_analysis())
+    out = tmp_path / 'out'
+    assert run_manifest(source, out) == 1
+    result = json.loads((out / 'analysis.json').read_text())
+    assert [a['analysis_outcome'] for a in result['ads']] == ['failed', 'reviewed']

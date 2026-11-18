@@ -43,7 +43,7 @@ python scripts/analyze.py --capture output/top-capture.json --out output/top --l
 python scripts/analyze.py --capture output/top-capture.json --out output/top --limit 3
 ```
 
-The second command uploads selected media to Gemini using the user's key and incurs their provider usage. Inspect the three media reads before expanding. Errors show the HTTP code and its usual cause; correct access/quota/model errors before retrying. Use `--timeout-seconds` if long videos time out. Check `usage.jsonl` for actual token usage; do not invent a dollar estimate.
+The second command uploads selected media to Gemini using the user's key and incurs their provider usage. Inspect the three media reads before expanding. Errors show the HTTP code and its usual cause; correct access/quota/model errors before retrying. After exhausted retries or a provider/transport failure, the run stops new model calls and retains matching cached reads. Inspect failed and not-attempted counts before rerunning; a longer timeout does not establish available provider capacity. `--check-model` checks metadata access only. Check `usage.jsonl` for actual token usage; do not invent a dollar estimate.
 
 ```bash
 python scripts/analyze.py --capture output/top-capture.json --out output/top --limit 30 --unique-limit 10
