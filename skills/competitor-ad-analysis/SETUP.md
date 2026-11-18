@@ -35,13 +35,13 @@ Leave `GEMINI_MODEL` blank to use the default, `gemini-3.5-flash`. If your key c
 .venv/bin/python scripts/setup.py --check
 ```
 
-For imported media only, add `--media-only`. This checks local packages, key presence and, when needed, Chrome. It does not contact Gemini. To confirm the key can call a model before the first run, use:
+For imported media only, add `--media-only`. This checks local packages, key presence and, when needed, Chrome. It does not contact Gemini. To check model metadata access before the first run, use:
 
 ```bash
 .venv/bin/python scripts/setup.py --check-model
 ```
 
-That makes a free metadata call, sends no media, and prints the model that will be used or the HTTP error code if none is available. Missing dependencies, Chrome, key, access and quota errors should be resolved before a larger run.
+That makes a free metadata call, sends no media, and prints the model metadata accessible to the key, or the HTTP error code if none is available. It does not make a generation request or verify capacity to analyze media. Missing dependencies, Chrome, key, access and quota errors should be resolved before a larger run.
 
 ChromeDriver may need a network download on first capture. Collection uses a fresh anonymous browser session, without your existing logins or cookies. If Meta blocks the page, use permitted downloaded media through an import manifest. Do not bypass the block.
 
@@ -65,9 +65,11 @@ Each asset is limited to 100 MB; video analysis is limited to ten minutes per as
 
 Share the entire output folder, not only its HTML file. The report uses local media and makes no external script requests. It is AI-assisted research, not proof of an advertiser's performance.
 
-Reruns reuse verified local media for an unchanged captured source and matching model reads. If an ad's source changes, it is fetched again. An expired source with no saved media is marked unavailable. A temporary provider error (HTTP 429, 500 or 503) is retried three times with a pause. Any other provider error stops further media requests in that run, preserving completed work and marking unattempted records. The terminal and the report show the HTTP code and what it usually means. Fix the cause and rerun; do not repeatedly retry unchanged failures.
+Reruns reuse verified local media for an unchanged captured source and matching model reads. If an ad's source changes, it is fetched again. An expired source with no saved media is marked unavailable. A temporary provider error (HTTP 429, 500 or 503) is retried three times with a pause: four generation attempts at most. SDK retries are disabled to keep that budget accurate. After those attempts fail, or a provider access, timeout or network error occurs, no new model requests or family comparison are made in that run. The remaining records and family comparison are still checked for matching cached results; restoring them makes no provider request. Public media download failures affect that item only.
 
-Each request has a 600 second limit, because long videos on newer models can take several minutes. Change it with `--timeout-seconds` or `GEMINI_TIMEOUT_SECONDS` (30 to 3600).
+The report retains completed reads and distinguishes failed items from items not attempted. `run_outcome` is `complete`, `partial` or `blocked`; a partial or blocked run exits nonzero. Existing `reviewed`/`unavailable` statuses remain compatible. Rerun with the same output directory, model and media to reuse completed reads. A changed model needs fresh reads. These safeguards limit wasted work; they do not resolve Google service capacity. Do not claim that an outage is fixed without a successful live run.
+
+Each request has a 600 second limit. A timeout alone does not show whether the cause is model latency, capacity or a network problem; do not keep increasing it for an unchanged failure. Change it with `--timeout-seconds` or `GEMINI_TIMEOUT_SECONDS` (30 to 3600).
 
 Uploaded Gemini files are deleted after each read. If deletion fails, `cleanup-warnings.jsonl` identifies the file in your Gemini account so it can be removed. Local reports and media remain on your machine until you choose to share or remove them. None are sent to RocketShip services by these scripts.
 

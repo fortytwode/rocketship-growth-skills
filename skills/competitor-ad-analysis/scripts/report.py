@@ -201,7 +201,8 @@ def render_html(data, base: Path, out: Path) -> str:
         source = f'<a href="{esc(src)}" rel="noopener noreferrer">View source</a>' if src else "Source link unavailable"
         date = esc(ad.get("launch_date") or "Date unavailable")
         if status == "unavailable":
-            content = f'<div class="unavailable"><strong>Analysis unavailable</strong><p>{esc(ad.get("error") or "No reason supplied.")}</p></div>'
+            outcome = esc(ad.get("analysis_outcome") or "unavailable")
+            content = f'<div class="unavailable"><strong>Analysis unavailable</strong><p>{outcome}</p><p>{esc(ad.get("error") or "No reason supplied.")}</p></div>'
         else:
             blocks = "".join(f'<div class="datum"><h4>{esc(k.replace("_", " ").title())}</h4><p>{esc(analysis.get(k))}</p></div>' for k in FIELDS if analysis.get(k) not in (None, "", []))
             beats = analysis.get("beats") or []
@@ -234,6 +235,8 @@ def render_html(data, base: Path, out: Path) -> str:
     distinct_note = "Distinct creative count not established" if cov.get("deduplication_verified") is False else f"Unique reviewed executions {unique_count}"
     caps = f"Selected records {len(ads)} · Reviewed records {reviewed_count} · Unavailable records {unavailable_count} · {distinct_note}"
     method = f"Cohort: {esc(data.get('cohort'))}. Model: {esc(data.get('model'))}. Schema version: {esc(data.get('schema_version'))}. {ranking_note}"
+    if data.get("run_outcome"):
+        caps += f" · Run {esc(data['run_outcome'])} · Failed {cov.get('failed', 0)} · Not attempted {cov.get('not_attempted', 0)}"
     capture_fields = ("status", "reason", "completeness", "available_records", "raw_record_cap", "unique_target", "date_from", "date_to", "captured_at", "summary", "ranking_basis", "ranking_note")
     capture_lines = "".join(f'<div><strong>{esc(key.replace("_", " ").title())}:</strong> {esc(capture.get(key))}</div>' for key in capture_fields if capture.get(key) not in (None, "", []))
     capture_status = s(capture.get("status")).lower()
@@ -266,6 +269,8 @@ def markdown(data, base, out):
     capture = data.get("capture") or {}
     distinct_note = "Distinct creative count not established" if cov.get("deduplication_verified") is False else f"unique executions {cov.get('unique_executions', 0)}"
     lines = ["# Competitor ad analysis", "", f"**Method:** cohort `{s(data.get('cohort'))}`; model `{s(data.get('model'))}`; schema `{s(data.get('schema_version'))}`.", "", f"**Coverage:** selected {cov.get('selected', 0)}; reviewed {cov.get('reviewed', 0)}; unavailable {cov.get('unavailable', 0)}; {distinct_note}.", "", "Ranking verified in source capture." if data.get("cohort") == "top" and cov.get("ranking_verified") is True else "Ranking was not verified; no rank or performance claims are made.", "", "## Creative families", ""]
+    if data.get("run_outcome"):
+        lines[2:2] = [f"**Run outcome:** {md_escape(data['run_outcome'])}; failed {cov.get('failed', 0)}; not attempted {cov.get('not_attempted', 0)}.", ""]
     insert_at = lines.index("## Creative families")
     capture_lines = ["## Source capture", ""]
     for key in ("status", "reason", "completeness", "available_records", "raw_record_cap", "unique_target", "date_from", "date_to", "captured_at", "summary", "ranking_basis", "ranking_note"):
@@ -289,7 +294,7 @@ def markdown(data, base, out):
             lines += ["Frames:", ""] + [f"- [{md_escape(fr.get('seconds'))}s]({link})" for fr, link in frame_links] + [""]
         an = a.get("analysis") or {}
         if a.get("status") == "unavailable":
-            lines += ["Analysis unavailable: " + md_escape(a.get("error")), ""]
+            lines += ["Analysis " + md_escape(a.get("analysis_outcome") or "unavailable") + ": " + md_escape(a.get("error")), ""]
         else:
             for key in FIELDS:
                 if an.get(key) not in (None, "", []): lines += [f"**{key.replace('_',' ').title()}:** {md_escape(an[key])}", ""]

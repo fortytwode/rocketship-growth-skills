@@ -74,3 +74,23 @@ def test_install_initializes_config_before_pip(monkeypatch, tmp_path):
     assert (tmp_path / ".env").exists()
     assert (tmp_path / ".gitignore").exists()
     assert any("pip" in call for call in calls)
+
+
+def test_model_check_is_metadata_only_and_disables_sdk_retries(monkeypatch, tmp_path, capsys):
+    import sys
+    from types import SimpleNamespace
+    from google import genai
+    constructors = []
+    fake_analysis = SimpleNamespace(read_config=lambda _: ('example-key', ''),
+        resolve_model=lambda *_: ('example-model', ''))
+    monkeypatch.setitem(sys.modules, 'analyze', fake_analysis)
+    def client(**kwargs):
+        constructors.append(kwargs)
+        return SimpleNamespace(close=lambda: None)
+    monkeypatch.setattr(genai, 'Client', client)
+    assert setup.check_model(tmp_path) == 0
+    assert constructors[0]['http_options'].retry_options.attempts == 1
+    output = capsys.readouterr().out
+    assert 'Model metadata accessible: example-model' in output
+    assert 'Generation capacity has not been tested' in output
+    assert 'Model ready' not in output
