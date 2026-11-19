@@ -23,6 +23,7 @@ def no_network_model_check(monkeypatch):
     # use a placeholder key, so that lookup must never leave the machine.
     monkeypatch.setattr(analysis, "resolve_model",
                         lambda client, requested: (requested or analysis.MODEL_DEFAULT, ""))
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
 
 
 def manifest(tmp_path, paths, ids=None):
@@ -47,9 +48,9 @@ def valid_analysis():
     )
 
 
-def run_manifest(source, out, *, model=None, dry=False, skip_cluster=True, client=None, unique_limit=None):
+def run_manifest(source, out, *, model=None, dry=False, skip_cluster=True, client=None, unique_limit=None, limit=20):
     args = analysis.parser().parse_args([
-        "--manifest", str(source), "--out", str(out), "--limit", "20",
+        "--manifest", str(source), "--out", str(out), "--limit", str(limit),
         *( ["--model", model] if model else []),
         *( ["--unique-limit", str(unique_limit)] if unique_limit is not None else []),
         *( ["--dry-run"] if dry else []),
@@ -108,7 +109,7 @@ def test_rerun_cache_and_model_change(monkeypatch, tmp_path):
     small_image(tmp_path / "asset.png")
     source = manifest(tmp_path, ["asset.png"])
     calls = []
-    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (calls.append(args[4]) or valid_analysis()))
+    monkeypatch.setattr(analysis, "analyze_media", lambda *args, **kwargs: (calls.append(args[4].name) or valid_analysis()))
     out = tmp_path / "out"
     assert run_manifest(source, out, model="model-a") == 0
     assert run_manifest(source, out, model="model-a") == 0
@@ -296,7 +297,7 @@ def test_gemini_wire_schema_strips_nested_additional_properties_but_local_valida
 
     assert contains_additional_properties(source_schema)
     with pytest.raises(ValueError, match="extra"):
-        analysis.generate(client, "example-model", "example input", analysis.AdAnalysis, tmp_path, "media")
+        analysis.generate(client, analysis.RunModel("example-model"), "example input", analysis.AdAnalysis, tmp_path, "media")
     wire_schema = client.models.config.response_schema
     assert not contains_additional_properties(wire_schema)
 
@@ -363,7 +364,7 @@ def test_generate_retries_temporary_overload_then_succeeds(tmp_path, monkeypatch
         return SimpleNamespace(text=valid_analysis().model_dump_json(), usage_metadata=None)
     client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
     monkeypatch.setattr(analysis.time, 'sleep', sleeps.append)
-    result = analysis.generate(client, 'm', ['x'], analysis.AdAnalysis, tmp_path, 'media')
+    result = analysis.generate(client, analysis.RunModel('m'), ['x'], analysis.AdAnalysis, tmp_path, 'media')
     assert result.summary == 'Observed summary'
     assert len(calls) == 3 and sleeps == list(analysis.RETRY_DELAYS_SECONDS[:2])
 
@@ -376,7 +377,7 @@ def test_generate_does_not_retry_a_missing_model(tmp_path, monkeypatch):
     client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
     monkeypatch.setattr(analysis.time, 'sleep', lambda s: None)
     with pytest.raises(_ProviderError):
-        analysis.generate(client, 'm', ['x'], analysis.AdAnalysis, tmp_path, 'media')
+        analysis.generate(client, analysis.RunModel('m'), ['x'], analysis.AdAnalysis, tmp_path, 'media')
     assert len(calls) == 1
 
 
@@ -528,7 +529,7 @@ def test_exhausted_generate_has_four_attempts_and_no_timeout_retry(tmp_path, mon
         raise _ProviderError(503, 'UNAVAILABLE')
     client = SimpleNamespace(models=SimpleNamespace(generate_content=fail))
     with pytest.raises(_ProviderError):
-        analysis.generate(client, 'm', 'x', analysis.AdAnalysis, tmp_path, 'media')
+        analysis.generate(client, analysis.RunModel('m'), 'x', analysis.AdAnalysis, tmp_path, 'media')
     assert len(calls) == 4
     calls.clear()
     def timeout(**kwargs):
@@ -536,8 +537,98 @@ def test_exhausted_generate_has_four_attempts_and_no_timeout_retry(tmp_path, mon
         raise type('ReadTimeout', (Exception,), {})()
     client.models.generate_content = timeout
     with pytest.raises(Exception):
-        analysis.generate(client, 'm', 'x', analysis.AdAnalysis, tmp_path, 'media')
+        analysis.generate(client, analysis.RunModel('m'), 'x', analysis.AdAnalysis, tmp_path, 'media')
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("automatic,alternate_available,code", [
+    (False, True, 503),
+    (True, False, 503),
+    (True, True, 503),
+    (True, True, 429),
+])
+def test_failover_respects_selection_and_request_budget(monkeypatch, tmp_path, automatic, alternate_available, code):
+    primary, alternate = analysis.MODEL_DEFAULT, analysis.OVERLOAD_ALTERNATE
+    attempts, checks = [], []
+
+    def get(model, config):
+        checks.append(model)
+        assert config.http_options.timeout == 5000
+        assert config.http_options.retry_options.attempts == 1
+        if not alternate_available:
+            raise _ProviderError(404, 'NOT_FOUND')
+
+    def generate_content(model, **kwargs):
+        attempts.append(model)
+        raise _ProviderError(code)
+
+    client = SimpleNamespace(models=SimpleNamespace(get=get, generate_content=generate_content))
+    monkeypatch.setattr(analysis.time, 'sleep', lambda _: None)
+    model = analysis.RunModel(primary, automatic=automatic)
+    with pytest.raises(_ProviderError):
+        analysis.generate(client, model, 'input', analysis.AdAnalysis, tmp_path, 'media')
+    eligible = automatic and code == 503
+    assert checks == ([alternate] if eligible else [])
+    if eligible and alternate_available:
+        assert attempts == [primary, primary, alternate, alternate]
+    else:
+        assert attempts == [primary] * 4
+
+
+def test_failover_finishes_cohort_and_reuses_mixed_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "example-test-key")
+    monkeypatch.setattr(analysis.time, 'sleep', lambda _: None)
+    primary, alternate = analysis.MODEL_DEFAULT, analysis.OVERLOAD_ALTERNATE
+    images = [f'{i}.png' for i in range(30)]
+    for i, name in enumerate(images):
+        small_image(tmp_path / name, (i, 60, 90))
+    source = manifest(tmp_path, images)
+    out = tmp_path / 'out'
+    attempts, checks, uploads, deletions = [], [], [], []
+    families = analysis.Families(families=[analysis.Family(
+        name='Demonstration', definition='Repeated demonstration',
+        ad_ids=[f'ad-{i}' for i in range(30)], shared_structure=[], exceptions=[],
+    )])
+
+    def upload(**kwargs):
+        name = f'files/ad-{len(uploads)}'
+        uploads.append(name)
+        return SimpleNamespace(name=name, state='ACTIVE', uri=f'https://example.invalid/{name}')
+
+    def generate_content(model, contents, **kwargs):
+        media = contents[0].file_data.file_uri if isinstance(contents, list) else None
+        attempts.append((model, media))
+        if model == primary and len(uploads) == 2:
+            raise _ProviderError(503, 'UNAVAILABLE')
+        result = valid_analysis() if media else families
+        return SimpleNamespace(text=result.model_dump_json(), usage_metadata=None)
+
+    client = SimpleNamespace(models=SimpleNamespace(get=lambda model, config: checks.append(model),
+                                                    generate_content=generate_content),
+                             files=SimpleNamespace(upload=upload, delete=lambda name: deletions.append(name)))
+    assert run_manifest(source, out, skip_cluster=False, limit=30, client=client) == 0
+    result = json.loads((out / 'analysis.json').read_text())
+    assert result['run_outcome'] == 'complete'
+    assert result['coverage']['reviewed'] == 30
+    assert result['coverage']['failed'] == result['coverage']['not_attempted'] == 0
+    assert len(uploads) == 30 and deletions == uploads
+    assert checks == [alternate]
+    second_file = 'https://example.invalid/files/ad-1'
+    assert attempts[1:4] == [(primary, second_file), (primary, second_file), (alternate, second_file)]
+    assert all(name == alternate for name, _ in attempts[4:])
+    assert attempts[-1] == (alternate, None)
+    assert [ad['analysis_model'] for ad in result['ads']] == [primary] + [alternate] * 29
+    assert result['family_model'] == alternate
+    assert (primary + ', ' + alternate) in (out / 'index.html').read_text()
+
+    def offline(*args):
+        raise analysis.httpx.ReadTimeout('offline')
+
+    monkeypatch.setattr(analysis, 'resolve_model', offline)
+    assert run_manifest(source, out, skip_cluster=False, limit=30) == 0
+    resumed = json.loads((out / 'analysis.json').read_text())
+    assert resumed['ads'] == result['ads']
+    assert resumed['families'] == result['families'] and resumed['family_model'] == alternate
 
 
 def test_failed_metadata_check_restores_cache_without_new_generation(monkeypatch, tmp_path):
