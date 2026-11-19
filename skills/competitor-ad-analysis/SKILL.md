@@ -3,7 +3,7 @@ name: competitor-ad-analysis
 description: "Analyze public competitor ads with anonymous Meta Ad Library collection, native Gemini video and audio analysis, creative-family comparisons and local HTML/CSV reports. Uses the user's own Gemini key; no RocketShip account, proposal workflow or private template required."
 metadata:
   author: RocketShip HQ
-  version: "1.1.0"
+  version: "1.3.0"
   requirements: "Local coding agent with terminal access, Python 3.10+, Chrome for collection, and a user-owned Gemini API key. Imported local media can be analyzed without Chrome."
 ---
 
@@ -43,7 +43,7 @@ python scripts/analyze.py --capture output/top-capture.json --out output/top --l
 python scripts/analyze.py --capture output/top-capture.json --out output/top --limit 3
 ```
 
-The second command uploads selected media to Gemini using the user's key and incurs their provider usage. Inspect the three media reads before expanding. Errors show the HTTP code and its usual cause; correct access/quota/model errors before retrying. After exhausted retries or a provider/transport failure, the run stops new model calls and retains matching cached reads. Inspect failed and not-attempted counts before rerunning; a longer timeout does not establish available provider capacity. `--check-model` checks metadata access only. Check `usage.jsonl` for actual token usage; do not invent a dollar estimate.
+The second command uploads selected media to Gemini using the user's key. Inspect the three media reads before expanding. If the default model returns two consecutive overload errors (HTTP 503) during a request, the run tries Flash-Lite for the remaining attempts and continues with it. A model chosen through `GEMINI_MODEL` or `--model` stays fixed. After exhausted retries or a provider access, timeout or network failure, the run stops new model calls and retains matching cached reads. Check failed and not-attempted counts before rerunning. `--check-model` checks metadata access only. See `usage.jsonl` for actual token usage.
 
 ```bash
 python scripts/analyze.py --capture output/top-capture.json --out output/top --limit 30 --unique-limit 10
