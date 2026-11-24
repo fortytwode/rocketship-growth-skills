@@ -1,0 +1,9 @@
+{
+ "title": "Ten Minutes (test film, about 30 seconds, dialogue)",
+ "retake_rate": 1.0,
+ "stills": {"count": 5, "revisions_each": 1, "model": "nano-banana-pro-replicate"},
+ "shots": [
+  {"id": "01", "what": "Kitchen: Maya and Tom, three lines", "seconds": 12, "dialogue": true, "reference_images": 2, "resolution": "720p", "only": ["seedance-2.5-replicate"]},
+  {"id": "02", "what": "Living room: Priya and Tom, three lines", "seconds": 12, "dialogue": true, "reference_images": 2, "resolution": "720p", "only": ["seedance-2.5-replicate"]}
+ ]
+}

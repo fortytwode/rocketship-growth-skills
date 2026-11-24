@@ -1,0 +1,52 @@
+# A tiny made-up example. The pictures are flat placeholder drawings, not generated images.
+# Build it with:  python scripts/storyboard.py examples/wrong-door
+title: Wrong Door (example)
+format: narrated
+script_version: v1
+board_version: "1"
+summary: >-
+  A courier tells the story of a delivery to the wrong flat. One narrator, nobody
+  speaks on screen. Three panels. Flat cartoon look, vertical 9:16.
+
+cast:
+  - name: Courier
+    image: assets/cast/courier.jpg
+    note: Orange top in every panel. The parcel is the one prop the story needs.
+settings:
+  - name: Hallway
+    image: assets/rooms/hallway.jpg
+    note: Green door on the right, window on the left. Same in every panel.
+
+panels:
+  - id: "01"
+    scene: "1"
+    image: storyboard/01.jpg
+    action: The courier stands at the green door with the parcel and checks the label.
+    lines:
+      - {type: vo, speaker: Courier, text: "Flat nine. I was sure it said flat nine."}
+  - id: "02"
+    scene: "2"
+    image: storyboard/02.jpg
+    action: The door opens a little. A small brown dog looks out. Nobody else is there.
+    lines:
+      - {type: vo, speaker: Courier, text: "The door opened by itself. Then I looked down."}
+  - id: "03"
+    scene: "3"
+    image: storyboard/03.jpg
+    action: The door is shut again. The parcel sits on the mat. The dog sits beside the courier.
+    lines:
+      - {type: vo, speaker: Courier, text: "It was flat six. The dog walked me there."}
+      - {type: caption, text: "Check the label twice."}
+
+continuity:
+  - cut: 01 -> 02
+    where: Courier stays left of the door
+    in_hand: Courier holds the parcel
+    state: Door goes from shut to a little open
+  - cut: 02 -> 03
+    where: Courier stays left, dog moves to the courier's side
+    in_hand: Nobody. The parcel is on the mat
+    state: Door shut again
+
+notes:
+  - The narration is 22 words. Record it first, then set each clip to the real length of its sentence.

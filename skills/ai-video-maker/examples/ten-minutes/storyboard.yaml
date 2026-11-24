@@ -1,0 +1,50 @@
+title: Ten Minutes (test film)
+format: dialogue
+script_version: v1
+board_version: "1"
+summary: >-
+  A 30-second dialogue test in an animated look, vertical 9:16. Tom misses a meeting
+  after another late night, and his partner hands him a sleep app. Three characters,
+  two rooms, six spoken lines. The app name is made up.
+
+cast:
+  - name: Tom, Maya and Priya
+    image: assets/cast/cast-sheet.jpg
+    note: >-
+      Tom, light blue shirt, voice sample tom.mp3. Maya, mustard blazer and glasses,
+      voice sample maya.mp3. Priya, green jumper, voice sample priya.mp3.
+settings:
+  - name: Office kitchen
+    image: assets/rooms/kitchen.jpg
+    note: Morning. Window on the left, counter at the back, fridge on the right.
+  - name: Living room
+    image: assets/rooms/living.jpg
+    note: Night. Lamp on the left, sofa in the middle, window on the right.
+
+panels:
+  - id: "01"
+    scene: "1"
+    image: storyboard/01.jpg
+    action: Maya stands by the counter with her arms folded. Tom holds a mug and looks down.
+    lines:
+      - {type: dialogue, speaker: Maya, text: "You missed the nine o'clock."}
+      - {type: dialogue, speaker: Tom, text: "I know. I was up till three again."}
+      - {type: dialogue, speaker: Maya, text: "That's the third time this month."}
+  - id: "02"
+    scene: "2"
+    image: storyboard/02.jpg
+    action: Tom is hunched over his phone on the sofa. Priya turns to him and holds out her hand for it.
+    lines:
+      - {type: dialogue, speaker: Priya, text: "Phone down. Try the thing I sent you."}
+      - {type: dialogue, speaker: Tom, text: "A sleep app? Really?"}
+      - {type: dialogue, speaker: Priya, text: "Ten minutes. Then tell me it doesn't work."}
+      - {type: caption, text: "Stillwater. Ten minutes to sleep."}
+
+continuity:
+  - cut: 01 -> 02
+    where: Tom moves from the right of the kitchen to the left of the sofa
+    in_hand: Mug in scene 1, phone in scene 2
+    state: Morning to night. Tom wears the same shirt.
+
+notes:
+  - Each scene is one take of about 12 seconds on Seedance 2.5, with the cast sheet, the room and two voice samples attached.

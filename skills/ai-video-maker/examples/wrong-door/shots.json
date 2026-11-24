@@ -1,0 +1,11 @@
+{
+ "title": "Wrong Door (example, 12 seconds, voiceover)",
+ "retake_rate": 0.3,
+ "stills": {"count": 5, "revisions_each": 1, "model": "nano-banana-pro-replicate"},
+ "voiceover": {"characters": 131},
+ "shots": [
+  {"id": "01", "what": "Courier checks the label at the door", "seconds": 4, "reference_images": 1, "resolution": "720p", "only": ["grok-video"]},
+  {"id": "02", "what": "Door opens, dog looks out", "seconds": 4, "reference_images": 1, "resolution": "720p", "only": ["grok-video"]},
+  {"id": "03", "what": "Parcel on the mat, dog beside the courier", "seconds": 4, "reference_images": 1, "resolution": "720p", "only": ["grok-video"]}
+ ]
+}

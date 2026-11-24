@@ -1,0 +1,302 @@
+{
+ "as_of": "2026-11-23",
+ "currency": "USD",
+ "note": "List prices copied from provider pages. They change often. Re-check the source_url before you spend, and edit this file when a price moves. This copy adds one row to the cost planner's table: nano-banana-pro-replicate.",
+ "models": [
+  {
+   "id": "veo-3.1-lite",
+   "name": "Veo 3.1 Lite",
+   "kind": "video",
+   "provider": "Google Cloud (Vertex AI)",
+   "tier": "standard",
+   "price_per_second": {
+    "720p": 0.05,
+    "1080p": 0.08
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 4,
+   "max_seconds": 8,
+   "start_image": true,
+   "max_reference_images": 0,
+   "photoreal_faces": "untested",
+   "notes": "Price matched Google's page on the check date, but the page lists the unit as a count, and we could not confirm clip length there. 1080p needed 8-second clips when we used it.",
+   "verified": false,
+   "source_url": "https://cloud.google.com/vertex-ai/generative-ai/pricing"
+  },
+  {
+   "id": "veo-3.1-fast",
+   "name": "Veo 3.1 Fast",
+   "kind": "video",
+   "provider": "Google Cloud (Vertex AI)",
+   "tier": "hero",
+   "price_per_second": {
+    "720p": 0.1,
+    "1080p": 0.12
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 4,
+   "max_seconds": 8,
+   "start_image": true,
+   "max_reference_images": 3,
+   "photoreal_faces": "untested",
+   "notes": "Price matched Google's page on the check date; unit and limits not confirmed there. Reference images worked only on 8-second clips when we used it.",
+   "verified": false,
+   "source_url": "https://cloud.google.com/vertex-ai/generative-ai/pricing",
+   "fixed_seconds_with_references": [
+    8
+   ]
+  },
+  {
+   "id": "kling-3.0",
+   "name": "Kling 3.0",
+   "kind": "video",
+   "provider": "fal.ai",
+   "tier": "standard",
+   "price_per_second": {
+    "720p": 0.084,
+    "1080p": 0.084
+   },
+   "audio_price_per_second": {
+    "720p": 0.126,
+    "1080p": 0.126
+   },
+   "audio_included": false,
+   "native_audio": true,
+   "min_seconds": 3,
+   "max_seconds": 10,
+   "start_image": true,
+   "max_reference_images": 1,
+   "photoreal_faces": "accepted",
+   "notes": "Needs a start image. Speech is a separate, higher rate. Maximum length is not stated on the page; 10 seconds is what we use.",
+   "verified": true,
+   "source_url": "https://fal.ai/models/fal-ai/kling-video/v3/standard/image-to-video"
+  },
+  {
+   "id": "kling-3.0-pro",
+   "name": "Kling 3.0 Pro",
+   "kind": "video",
+   "provider": "fal.ai",
+   "tier": "hero",
+   "price_per_second": {
+    "720p": 0.112,
+    "1080p": 0.112
+   },
+   "audio_price_per_second": {
+    "720p": 0.168,
+    "1080p": 0.168
+   },
+   "audio_included": false,
+   "native_audio": true,
+   "min_seconds": 3,
+   "max_seconds": 15,
+   "start_image": true,
+   "max_reference_images": 1,
+   "photoreal_faces": "accepted",
+   "notes": "Our pick for a photoreal face, started from a neutral still.",
+   "verified": true,
+   "source_url": "https://fal.ai/models/fal-ai/kling-video/v3/pro/image-to-video"
+  },
+  {
+   "id": "seedance-2.5-kie",
+   "name": "Seedance 2.5",
+   "kind": "video",
+   "provider": "Kie.ai",
+   "tier": "standard",
+   "price_per_second": {
+    "480p": 0.14,
+    "720p": 0.315,
+    "1080p": 0.79
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 4,
+   "max_seconds": 30,
+   "start_image": true,
+   "max_reference_images": 30,
+   "photoreal_faces": "accepted",
+   "notes": "Long takes with many references. Result links are temporary, so download at once.",
+   "verified": true,
+   "source_url": "https://kie.ai/seedance-2-5"
+  },
+  {
+   "id": "seedance-2.5-replicate",
+   "name": "Seedance 2.5",
+   "kind": "video",
+   "provider": "Replicate",
+   "tier": "standard",
+   "price_per_second": {
+    "480p": 0.1028,
+    "720p": 0.2312
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 4,
+   "max_seconds": 30,
+   "start_image": true,
+   "max_reference_images": 30,
+   "photoreal_faces": "untested",
+   "notes": "Reference images cannot be combined with start and end frames.",
+   "verified": true,
+   "source_url": "https://replicate.com/bytedance/seedance-2.5"
+  },
+  {
+   "id": "seedance-2.5-fal",
+   "name": "Seedance 2.5",
+   "kind": "video",
+   "provider": "fal.ai",
+   "tier": "standard",
+   "price_per_second": {
+    "480p": 0.2205,
+    "720p": 0.473
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 4,
+   "max_seconds": 30,
+   "start_image": true,
+   "max_reference_images": 30,
+   "photoreal_faces": "untested",
+   "notes": "Per-second figures are approximate; fal bills this model by tokens.",
+   "source_url": "https://fal.ai/models/bytedance/seedance-2.5/image-to-video",
+   "verified": true
+  },
+  {
+   "id": "grok-video",
+   "name": "Grok Imagine Video",
+   "kind": "video",
+   "provider": "Replicate",
+   "tier": "standard",
+   "price_per_second": {
+    "480p": 0.05,
+    "720p": 0.07
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 1,
+   "max_seconds": 15,
+   "start_image": true,
+   "max_reference_images": 1,
+   "photoreal_faces": "untested",
+   "notes": "",
+   "source_url": "https://replicate.com/xai/grok-imagine-video",
+   "verified": true
+  },
+  {
+   "id": "grok-video-1.5",
+   "name": "Grok Imagine 1.5 Video",
+   "kind": "video",
+   "provider": "Replicate",
+   "tier": "standard",
+   "price_per_second": {
+    "480p": 0.08,
+    "720p": 0.08
+   },
+   "audio_included": true,
+   "native_audio": true,
+   "min_seconds": 1,
+   "max_seconds": 15,
+   "start_image": true,
+   "max_reference_images": 1,
+   "photoreal_faces": "untested",
+   "notes": "Needs a start image. Audio is always on.",
+   "verified": true,
+   "source_url": "https://replicate.com/xai/grok-imagine-video-1.5"
+  },
+  {
+   "id": "kling-2.5-turbo",
+   "name": "Kling 2.5 Turbo Pro",
+   "kind": "video",
+   "provider": "Replicate",
+   "tier": "standard",
+   "price_per_second": {
+    "720p": 0.07
+   },
+   "audio_included": false,
+   "native_audio": false,
+   "min_seconds": 5,
+   "max_seconds": 10,
+   "start_image": true,
+   "max_reference_images": 1,
+   "photoreal_faces": "untested",
+   "notes": "Cheap silent motion tests. Clips are 5 or 10 seconds.",
+   "verified": true,
+   "source_url": "https://replicate.com/kwaivgi/kling-v2.5-turbo-pro",
+   "fixed_seconds": [
+    5,
+    10
+   ]
+  },
+  {
+   "id": "nano-banana",
+   "name": "Nano Banana",
+   "kind": "image",
+   "provider": "Kie.ai",
+   "price_per_image": 0.02,
+   "notes": "Drafts and storyboard frames.",
+   "verified": true,
+   "source_url": "https://kie.ai/nano-banana"
+  },
+  {
+   "id": "nano-banana-pro",
+   "name": "Nano Banana Pro",
+   "kind": "image",
+   "provider": "Google Gemini API",
+   "price_per_image": 0.134,
+   "notes": "Cast sheets and hero frames. Price is for 1K and 2K images.",
+   "verified": true,
+   "source_url": "https://aistudio.google.com/docs/pricing"
+  },
+  {
+   "id": "nano-banana-pro-replicate",
+   "name": "Nano Banana Pro",
+   "kind": "image",
+   "provider": "Replicate",
+   "price_per_image": 0.15,
+   "notes": "The route scripts/generate.py uses for stills, so one Replicate key covers images and video. Price is for 1K and 2K images and has not been re-checked on the provider's page.",
+   "verified": false,
+   "source_url": "https://replicate.com/google/nano-banana-pro"
+  },
+  {
+   "id": "nano-banana-2.1",
+   "name": "Nano Banana 2.1",
+   "kind": "image",
+   "provider": "Google Gemini API",
+   "price_per_image": 0.0336,
+   "notes": "Price is for a 1K image.",
+   "source_url": "https://aistudio.google.com/docs/pricing",
+   "verified": true
+  },
+  {
+   "id": "gpt-image",
+   "name": "GPT Image 2 (medium quality)",
+   "kind": "image",
+   "provider": "OpenAI API",
+   "price_per_image": 0.053,
+   "notes": "Cast and location sheets. Price is for a 1024x1024 image. OpenAI's newer image models are priced per token.",
+   "verified": true,
+   "source_url": "https://developers.openai.com/api/docs/pricing"
+  },
+  {
+   "id": "flux-schnell",
+   "name": "Flux Schnell",
+   "kind": "image",
+   "provider": "Replicate",
+   "price_per_image": 0.003,
+   "notes": "Throwaway drafts.",
+   "verified": true,
+   "source_url": "https://replicate.com/pricing"
+  },
+  {
+   "id": "elevenlabs-tts",
+   "name": "ElevenLabs text to speech",
+   "kind": "voice",
+   "provider": "ElevenLabs API",
+   "price_per_1k_characters": 0.08,
+   "notes": "Narration only. Dialogue on screen needs a video model with native speech.",
+   "verified": true,
+   "source_url": "https://elevenlabs.io/pricing/api"
+  }
+ ]
+}

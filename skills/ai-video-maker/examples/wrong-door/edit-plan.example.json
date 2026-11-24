@@ -1,0 +1,22 @@
+{
+ "schema_version": 1,
+ "canvas": {"width": 720, "height": 1280, "fps": 30},
+ "narration": {"path": "assets/narration.mp3", "sha256": "REPLACE_WITH_FILE_CHECKSUM"},
+ "segments": [
+  {"id": "01", "source": "clips/scene-01.mp4", "sha256": "REPLACE_WITH_FILE_CHECKSUM", "in_seconds": 0, "duration_seconds": 3.5},
+  {"id": "02", "source": "clips/scene-02.mp4", "sha256": "REPLACE_WITH_FILE_CHECKSUM", "in_seconds": 0, "duration_seconds": 4.2},
+  {"id": "03", "source": "clips/scene-03.mp4", "sha256": "REPLACE_WITH_FILE_CHECKSUM", "in_seconds": 0.5, "duration_seconds": 4.3}
+ ],
+ "captions": {
+  "events": [
+   {"text": "Flat nine. I was sure it said flat nine.", "start": 0.2, "end": 3.3},
+   {"text": "The door opened by itself. Then I looked down.", "start": 3.6, "end": 7.5},
+   {"text": "It was flat six. The dog walked me there.", "start": 7.9, "end": 11.4}
+  ],
+  "font": {"path": "assets/caption-font.ttf", "sha256": "REPLACE_WITH_FILE_CHECKSUM"},
+  "style": {"max_width": 620, "max_lines": 3, "min_font_size": 34, "max_font_size": 54, "x": "center",
+            "bottom_margin": 330, "font_color": "#FFFFFF", "border_color": "#000000", "border_width": 6,
+            "line_spacing": 8}
+ },
+ "output": {"path": "outputs/wrong-door-v1.mp4", "receipt": "outputs/wrong-door-v1.json"}
+}
