@@ -1,9 +1,9 @@
 # Setup and usage
 
-The audit implementation lives in the public repository [fortytwode/meta-ads-account-audit](https://github.com/fortytwode/meta-ads-account-audit). This review edition includes a small [runtime patch](references/runtime-update.patch) for its API-version pin and bounded request retries. The existing public default branch has not received that patch. Clone the verified base into a new working folder and apply the supplied patch before use:
+The audit implementation lives in the public repository [rocketshiphq/meta-ads-account-audit](https://github.com/rocketshiphq/meta-ads-account-audit). This review edition includes a small [runtime patch](references/runtime-update.patch) for its API-version pin and bounded request retries. The existing public default branch has not received that patch. Clone the verified base into a new working folder and apply the supplied patch before use:
 
 ```bash
-git clone https://github.com/fortytwode/meta-ads-account-audit.git <working-folder>
+git clone https://github.com/rocketshiphq/meta-ads-account-audit.git <working-folder>
 cd <working-folder>
 git checkout 4bb18ca5e3d95015ae2e5160e55b2d5a0a18f008
 git apply /absolute/path/to/skills/account-structure-audit/references/runtime-update.patch

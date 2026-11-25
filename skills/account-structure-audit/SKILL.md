@@ -5,7 +5,7 @@ description: Run a structural audit of a B2C subscription or trial app's Meta ad
 
 # Meta Account Structure Audit
 
-Use the public [meta-ads-account-audit](https://github.com/fortytwode/meta-ads-account-audit) repository as the authoritative implementation. This skill is a setup and workflow wrapper; do not copy or bundle its runtime.
+Use the public [meta-ads-account-audit](https://github.com/rocketshiphq/meta-ads-account-audit) repository as the authoritative implementation. This skill is a setup and workflow wrapper; do not copy or bundle its runtime.
 
 ## Scope
 
