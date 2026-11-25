@@ -110,10 +110,10 @@
       "version": "1.0.0",
       "source": "skills/ai-video-maker",
       "zip": "dist/ai-video-maker.zip",
-      "archive_sha256": "860ddcdae8ab4571b1b44e571da6ada812e86c7bb24016885eb163340f1aeadc",
+      "archive_sha256": "7d8898a4ef70b66bd5619edd4ac66c049557cd8d1343873e05086cc1f8164c64",
       "files": {
         "LICENSE": "44d3df8941e78dfc9089422cf644ee93e7990b8bf7681478a7fbe794de9e415c",
-        "SETUP.md": "50f6533f9bb1fa3c5305d2ef6bee5db34b3c33e686e6192dc554c70b18cf7b81",
+        "SETUP.md": "1cb153048bb49f6f73258cbf6b5c74ec59108252d769564f113891b756f31d1c",
         "SKILL.md": "4330ce1da975ec98d54b1f279fce4a1e81ba9f5b94194dc37aef53c31f915937",
         "data/models.json": "b156d2e55844f50ad85300919b55edabfa459a3426c009919aaad03bb22d54bf",
         "examples/ten-minutes/README.md": "ffe3a109351ae7213935874e9afa0075af365104d8ae25500b7a20975e81e7e9",

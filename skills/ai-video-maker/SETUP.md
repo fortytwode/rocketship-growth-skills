@@ -96,7 +96,7 @@ Ask your assistant to read `SKILL.md`, then give it your approved script.
 
 ## Limits you should know
 
-- **Nothing in `generate.py` has been run against a live provider from this package.** The requests follow what worked in our own tools on the dates we used them. Providers change their fields. Run `--dry-run`, then one short, cheap job on each route before a real run.
+- **Three routes in `generate.py` have been run against live providers from this package:** Nano Banana Pro and Seedance 2.5 on Replicate, and ElevenLabs. They made the example film in `examples/ten-minutes/` on 24 November 2026. The other routes follow what worked in our own tools on the dates we used them. Providers change their fields. Run `--dry-run`, then one short, cheap job on each route before a real run.
 - **Prices are list prices on the date in `data/models.json`.** Check the provider's page. Kling 3.0 on Replicate has no price in the table, so you pass `--rate` yourself.
 - **The ledger holds estimates.** Your provider bills are the real numbers. A failed job is not counted in the ledger. Check whether your provider billed it.
 - **Models refuse some requests**, most often realistic faces. That is the provider's decision.
